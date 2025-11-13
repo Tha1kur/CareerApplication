@@ -1,0 +1,57 @@
+[
+  {
+    "id": "nsf",
+    "name": "National Scholarship Portal (NSP) Merit Scholarship",
+    "category": "Merit",
+    "eligibility": "Class 12 pass with 80%+, family income below ₹2.5L",
+    "deadline": "31 March 2025",
+    "amount": "₹10,000 – ₹50,000",
+    "applyLink": "https://scholarships.gov.in",
+    "description": "Government-funded scholarship for meritorious students pursuing UG studies.",
+    "tags": ["Merit", "Government", "UG"]
+  },
+  {
+    "id": "obc-postmatric",
+    "name": "Post-Matric Scholarship for OBC Students",
+    "category": "Need-based",
+    "eligibility": "OBC category students, family income below ₹1 lakh",
+    "deadline": "15 January 2025",
+    "amount": "₹5,000 – ₹20,000",
+    "applyLink": "https://scholarships.gov.in",
+    "description": "Assistance for OBC students in post-matric courses.",
+    "tags": ["Need-based", "OBC", "Government"]
+  },
+  {
+    "id": "tata-scholar",
+    "name": "Tata Means Grant",
+    "category": "Need-based",
+    "eligibility": "UG/PG students with strong academics and low income",
+    "deadline": "10 December 2025",
+    "amount": "₹10,000 – ₹60,000",
+    "applyLink": "https://www.tatatrusts.org",
+    "description": "Financial assistance to talented but economically weaker students.",
+    "tags": ["Need-based", "Private", "UG/PG"]
+  },
+  {
+    "id": "adobe-women-tech",
+    "name": "Adobe Women-in-Tech Scholarship",
+    "category": "STEM",
+    "eligibility": "Female students in CS, IT, AI/ML, or related fields",
+    "deadline": "30 September 2025",
+    "amount": "₹1,00,000 + Internship",
+    "applyLink": "https://adobe.com",
+    "description": "Scholarship and internship for outstanding women in technology.",
+    "tags": ["STEM", "Women", "Tech"]
+  },
+  {
+    "id": "inspire",
+    "name": "INSPIRE Scholarship for Higher Education",
+    "category": "Science",
+    "eligibility": "Top 1% in 12th boards OR JEE/NEET rank holders",
+    "deadline": "31 October 2025",
+    "amount": "₹80,000/year",
+    "applyLink": "https://online-inspire.gov.in",
+    "description": "Government scholarship to promote careers in natural sciences.",
+    "tags": ["Science", "Merit"]
+  }
+]

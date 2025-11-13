@@ -1,0 +1,54 @@
+[
+  {
+    "id": "iitb",
+    "name": "Indian Institute of Technology Bombay",
+    "city": "Mumbai",
+    "state": "Maharashtra",
+    "type": "Engineering",
+    "tags": ["Engineering","Computer Science","AI","Electronics"],
+    "intake": "UG/PG",
+    "avgFees": "₹2-3 LPA",
+    "website": "https://www.iitb.ac.in",
+    "description": "IIT Bombay is a leading engineering institute with strong CS and research programs.",
+    "rank": 1
+  },
+  {
+    "id": "nid",
+    "name": "National Institute of Design",
+    "city": "Ahmedabad",
+    "state": "Gujarat",
+    "type": "Design",
+    "tags": ["Design","UI/UX","Product"],
+    "intake": "UG/PG",
+    "avgFees": "₹1-3 LPA",
+    "website": "https://www.nid.edu",
+    "description": "Top design school for UI/UX, product and industrial design.",
+    "rank": 10
+  },
+  {
+    "id": "iim-a",
+    "name": "Indian Institute of Management Ahmedabad",
+    "city": "Ahmedabad",
+    "state": "Gujarat",
+    "type": "Management",
+    "tags": ["Management","Business","Strategy"],
+    "intake": "PG",
+    "avgFees": "₹10-20 LPA",
+    "website": "https://www.iima.ac.in",
+    "description": "Premier management school for MBA and leadership programs.",
+    "rank": 2
+  },
+  {
+    "id": "iitk",
+    "name": "Indian Institute of Technology Kanpur",
+    "city": "Kanpur",
+    "state": "Uttar Pradesh",
+    "type": "Engineering",
+    "tags": ["Engineering","Science","Robotics"],
+    "intake": "UG/PG",
+    "avgFees": "₹2-3 LPA",
+    "website": "https://www.iitk.ac.in",
+    "description": "Strong research and engineering programs.",
+    "rank": 3
+  }
+]
