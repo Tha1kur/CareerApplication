@@ -1,4 +1,4 @@
-package com.adityayadav.careerguidancecommunity.data
+package com.adityayadav.careerguidancecommunity.data.model
 
 import kotlinx.serialization.Serializable
 
@@ -10,5 +10,7 @@ data class Scholarship(
     val amount: String? = null,
     val deadline: String? = null,
     val eligibility: String? = null,
-    val applyLink: String? = null
+    val applyLink: String? = null,
+    val description: String? = null,
+    val tags: List<String>? = null
 )

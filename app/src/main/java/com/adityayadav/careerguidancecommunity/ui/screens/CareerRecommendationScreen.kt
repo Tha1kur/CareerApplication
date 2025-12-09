@@ -1,13 +1,12 @@
 package com.adityayadav.careerguidancecommunity.ui.screens
 
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,459 +14,695 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.layout.Layout
-import kotlin.math.max
+import com.adityayadav.careerguidancecommunity.data.CollegeRepository
+import com.adityayadav.careerguidancecommunity.data.ScholarshipRepository
+import com.adityayadav.careerguidancecommunity.data.DataStoreManager
+import com.adityayadav.careerguidancecommunity.data.model.College
+import com.adityayadav.careerguidancecommunity.data.model.QuizAnswers
+import com.adityayadav.careerguidancecommunity.data.model.Scholarship
 import com.adityayadav.careerguidancecommunity.viewmodel.QuizViewModel
-import androidx.compose.foundation.layout.width
-import androidx.compose.ui.text.style.TextDecoration
+import kotlinx.coroutines.launch
 
-// ---------------------------- Data (CAREER_INFO + skill descriptions + colors) ----------------------------
-private val CAREER_INFO: Map<String, CareerInfo> = mapOf(
-    "Engineering" to CareerInfo(
-        title = "Engineering",
-        short = "Solve real-world technical problems using math & technology.",
-        skills = listOf("Mathematics", "Programming", "Problem solving", "CAD/Systems thinking", "Electronics", "Embedded systems", "Data structures"),
-        salary = "₹3.5 LPA – ₹25 LPA (depending on role & company)",
-        roadmap = listOf("Complete engineering diploma/degree (B.Tech)", "Build projects (apps / hardware)", "Internships / open-source", "Specialize (AI, Embedded, Cloud)"),
-        colleges = listOf("IITs / NITs", "State Engineering Colleges", "Private tech universities")
-    ),
-    "Design" to CareerInfo(
-        title = "Design (UI/UX / Product / Visual)",
-        short = "Create user-friendly and beautiful product experiences.",
-        skills = listOf("Visual design", "User research", "Prototyping (Figma)", "Interaction design", "Wireframing", "Accessibility"),
-        salary = "₹2.4 LPA – ₹20 LPA (product & startup roles vary)",
-        roadmap = listOf("Learn design fundamentals", "Master Figma/Sketch/Adobe", "Build portfolio & case studies", "Apply for internships / freelance"),
-        colleges = listOf("Design Institutes (NID, CEPT)", "Private design schools", "University design specializations")
-    ),
-    "Management" to CareerInfo(
-        title = "Management / Business",
-        short = "Lead teams, plan strategy and run operations or products.",
-        skills = listOf("Communication", "Leadership", "Business strategy", "Data-driven decision making", "Stakeholder management"),
-        salary = "₹4 LPA – ₹40 LPA (product / consulting / leadership roles)",
-        roadmap = listOf("Bachelor's degree (any field)", "Gain work experience", "MBA / Management programs", "Move into product/operations/consulting"),
-        colleges = listOf("IIMs / Top B-schools", "State universities (MBA)", "Good private MBA colleges")
-    ),
-    "Science" to CareerInfo(
-        title = "Science & Research",
-        short = "Investigate fundamental questions; build knowledge and innovations.",
-        skills = listOf("Laboratory skills", "Critical thinking", "Statistics", "Scientific writing", "Data analysis"),
-        salary = "₹3 LPA – ₹30 LPA (academia → industry research varies)",
-        roadmap = listOf("B.Sc / B.Tech in relevant field", "M.Sc / PhD for research roles", "Publish papers, join labs", "Industry R&D or academia"),
-        colleges = listOf("Central universities / IISc / Research institutes", "Top science colleges")
-    ),
-    "Entrepreneurship" to CareerInfo(
-        title = "Entrepreneur / Startup",
-        short = "Create and grow your own business or product.",
-        skills = listOf("Product thinking", "Sales", "Fundraising", "Resilience", "Market research"),
-        salary = "Varies greatly — equity + growth potential",
-        roadmap = listOf("Build an MVP", "Validate with users", "Find co-founder / team", "Raise funds / grow revenue"),
-        colleges = listOf("Incubators, startup accelerators, engineering colleges")
-    )
-)
-
+// Info for each career track (keys must match scores map)
 private data class CareerInfo(
+    val key: String,
     val title: String,
     val short: String,
     val skills: List<String>,
-    val salary: String,
-    val roadmap: List<String>,
-    val colleges: List<String>
+    val vibeTags: List<String>
 )
 
-// Short skill descriptions (used by chip tap)
-private val SKILL_DESCRIPTIONS: Map<String, String> = mapOf(
-    "Mathematics" to "Core math skills used in engineering, algorithms and modeling.",
-    "Programming" to "Ability to write code, build applications and automate tasks.",
-    "Problem solving" to "Breaking down problems logically and finding solutions.",
-    "CAD/Systems thinking" to "Designing systems and using CAD tools for physical products.",
-    "Electronics" to "Understanding circuits, microcontrollers and electronic systems.",
-    "Embedded systems" to "Building software for hardware devices.",
-    "Data structures" to "Efficient ways to store and access data.",
-    "Visual design" to "Principles of layout, typography and color.",
-    "User research" to "Understanding user needs through interviews and testing.",
-    "Prototyping (Figma)" to "Rapidly building UI mockups to validate ideas.",
-    "Interaction design" to "Designing how users interact with products.",
-    "Wireframing" to "Low-fidelity sketches of UI layout and flows.",
-    "Accessibility" to "Designing products usable by people with disabilities.",
-    "Communication" to "Clear written and verbal communication skills.",
-    "Leadership" to "Guiding teams, making decisions and motivating people.",
-    "Business strategy" to "Planning how a company creates value and competes.",
-    "Data-driven decision making" to "Using metrics and analysis to guide actions.",
-    "Laboratory skills" to "Hands-on experimental techniques in science.",
-    "Statistics" to "Understanding and analyzing data using statistical methods.",
-    "Scientific writing" to "Communicating research clearly and accurately.",
-    "Product thinking" to "Focusing on customer value and product-market fit.",
-    "Sales" to "Selling products and building customer relationships.",
-    "Fundraising" to "Raising capital from investors and fund sources.",
-    "Resilience" to "Persisting through setbacks and learning from failure.",
-    "Market research" to "Studying users and competitors to find opportunity."
+private val CAREER_INFO: Map<String, CareerInfo> = mapOf(
+    "Engineering" to CareerInfo(
+        key = "Engineering",
+        title = "Engineering & Tech",
+        short = "Build and optimize real-world systems using math, code and hardware.",
+        skills = listOf("Mathematics", "Programming", "Problem solving", "Physics", "Robotics"),
+        vibeTags = listOf("Labs & projects", "Tech innovation", "Product building")
+    ),
+    "Design" to CareerInfo(
+        key = "Design",
+        title = "Design & UX",
+        short = "Turn ideas into beautiful, usable products and experiences.",
+        skills = listOf("Visual design", "UI/UX", "Creativity", "Storytelling"),
+        vibeTags = listOf("Figma & sketches", "User research", "Portfolios")
+    ),
+    "Management" to CareerInfo(
+        key = "Management",
+        title = "Business & Management",
+        short = "Lead teams, manage resources and drive strategy & growth.",
+        skills = listOf("Communication", "Leadership", "Strategy", "Finance basics"),
+        vibeTags = listOf("Presentations", "Teamwork", "Decision making")
+    ),
+    "Science" to CareerInfo(
+        key = "Science",
+        title = "Science & Research",
+        short = "Explore how the world works with experiments, data and theory.",
+        skills = listOf("Scientific method", "Data analysis", "Curiosity"),
+        vibeTags = listOf("Labs", "Research papers", "Deep thinking")
+    ),
+    "Entrepreneurship" to CareerInfo(
+        key = "Entrepreneurship",
+        title = "Entrepreneurship",
+        short = "Start and grow your own products, startups or services.",
+        skills = listOf("Problem spotting", "Business models", "Networking"),
+        vibeTags = listOf("Startups", "Pitch decks", "Ownership")
+    )
 )
 
-// Per-career chip colors
-private val CAREER_COLORS: Map<String, Color> = mapOf(
-    "Engineering" to Color(0xFF6EC6FF),
-    "Design" to Color(0xFFFFD86E),
-    "Management" to Color(0xFFB39DDB),
-    "Science" to Color(0xFF90CAF9),
-    "Entrepreneurship" to Color(0xFFFFAB91)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class,
+    ExperimentalMaterial3Api::class
 )
-
-// ---------------------------- Main Screen ----------------------------
 @Composable
 fun CareerRecommendationScreen(
     viewModel: QuizViewModel,
     onNavigate: (String) -> Unit
 ) {
     val scores by viewModel.scores.collectAsState(initial = emptyMap())
+    val answers by viewModel.answers.collectAsState()
 
-    val sorted = if (scores.isEmpty()) CAREER_INFO.keys.associateWith { 0 } else scores
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
-    val topThree = sorted.entries.sortedByDescending { it.value }.take(3).map { it.key }
+    var colleges by remember { mutableStateOf<List<College>>(emptyList()) }
+    var scholarships by remember { mutableStateOf<List<Scholarship>>(emptyList()) }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        item {
-            Text(text = "Career Recommendations", style = MaterialTheme.typography.headlineSmall)
-            Text(text = "Based on your quiz results — top careers you might enjoy", fontSize = 14.sp)
-            Spacer(modifier = Modifier.height(8.dp))
+    // Saved career key from DataStore
+    val savedCareerKey by DataStoreManager
+        .getStringFlow(context, "saved_career_key", "")
+        .collectAsState(initial = "")
+
+    LaunchedEffect(Unit) {
+        try {
+            colleges = CollegeRepository.loadAll(context)
+        } catch (_: Exception) {
+            colleges = emptyList()
         }
 
-        // Bar chart
-        item {
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text("Score distribution", style = MaterialTheme.typography.titleMedium)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    BarChart(scores = sorted, modifier = Modifier.fillMaxWidth())
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-
-        // helper if no scores
-        item {
-            if (scores.isEmpty()) {
-                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text("No results yet", style = MaterialTheme.typography.titleMedium)
-                        Text("Take the quiz to get personalized career recommendations.", fontSize = 14.sp)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Button(onClick = { onNavigate("quiz") }) { Text("Take Quiz") }
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-        }
-
-        // Top careers list
-        items(topThree) { key ->
-            val info = CAREER_INFO[key] ?: CareerInfo(key, "A good match", emptyList(), "Varies", emptyList(), emptyList())
-            CareerCard(info = info, score = sorted[key] ?: 0, careerKey = key, onExploreColleges = { onNavigate("colleges") })
-        }
-
-        item {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("Next steps", style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.height(6.dp))
-            Text("• Try the colleges list and check scholarships.")
-            Text("• Build a small project or portfolio related to the top career.")
-            Text("• Consider short online courses (Coursera, Udemy, NPTEL) to improve key skills.")
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { onNavigate("colleges") }, modifier = Modifier.weight(1f)) { Text("Explore Colleges") }
-                OutlinedButton(onClick = { onNavigate("scholarships") }, modifier = Modifier.weight(1f)) { Text("Check Scholarships") }
-            }
-            Spacer(modifier = Modifier.height(24.dp))
+        try {
+            scholarships = ScholarshipRepository.loadAll(context)
+        } catch (_: Exception) {
+            scholarships = emptyList()
         }
     }
-}
 
-// ---------------------------- Career Card (with limited chips & popup) ----------------------------
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun CareerCard(info: CareerInfo, score: Int, careerKey: String, onExploreColleges: () -> Unit) {
-    // expansion state for chips (show more)
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    val effectiveScores: Map<String, Int> =
+        if (scores.isEmpty()) CAREER_INFO.keys.associateWith { 0 } else scores
 
-    // dialog state for showing skill description
-    var showSkillDialog by rememberSaveable { mutableStateOf(false) }
-    var dialogSkillTitle by rememberSaveable { mutableStateOf("") }
-    var dialogSkillDesc by rememberSaveable { mutableStateOf("") }
+    val sorted = effectiveScores.entries
+        .sortedByDescending { it.value }
+        .filter { CAREER_INFO.containsKey(it.key) }
 
-    val chipColor = CAREER_COLORS[careerKey] ?: Color(0xFFD0D0D0)
+    val pagerState = rememberPagerState(
+        initialPage = 0,
+        pageCount = { sorted.size.coerceAtLeast(1) }
+    )
 
-    Card(modifier = Modifier
-        .fillMaxWidth()
-        .animateContentSize(),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                Column {
-                    Text(text = info.title, style = MaterialTheme.typography.titleMedium)
-                    Text(text = "Score: $score", fontSize = 12.sp)
-                }
-                Button(onClick = onExploreColleges) { Text("Explore Colleges") }
-            }
-
-            Text(info.short, fontSize = 14.sp)
-
-            Text("Key skills", style = MaterialTheme.typography.titleSmall)
-
-            // show first N skills + "+N more" chip
-            val displayCount = 6
-            val skills = info.skills
-            val showList = if (expanded) skills else skills.take(displayCount)
-
-            FlowLayout(horizontalGap = 8.dp, verticalGap = 8.dp, modifier = Modifier.fillMaxWidth()) {
-                showList.forEach { skill ->
-                    // each chip is clickable to show description
-                    SkillChip(text = skill, bgColor = chipColor, onClick = {
-                        dialogSkillTitle = skill
-                        dialogSkillDesc = SKILL_DESCRIPTIONS[skill] ?: "Short info about $skill."
-                        showSkillDialog = true
-                    })
-                }
-
-                if (!expanded && skills.size > displayCount) {
-                    val remaining = skills.size - displayCount
-                    // FIXED: use named parameter so lambda binds to onClick (not isPrimary)
-                    MoreChip(text = "+$remaining more", onClick = { expanded = true })
-                }
-                // show "Show less" chip when expanded
-                if (expanded && skills.size > displayCount) {
-                    MoreChip(text = "Show less", onClick = { expanded = false }, isPrimary = false)
-                }
-            }
-
-            // show dialog when chip tapped
-            if (showSkillDialog) {
-                AlertDialog(
-                    onDismissRequest = { showSkillDialog = false },
-                    title = { Text(dialogSkillTitle) },
-                    text = { Text(dialogSkillDesc) },
-                    confirmButton = {
-                        TextButton(onClick = { showSkillDialog = false }) { Text("OK") }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Career recommendations") },
+                navigationIcon = {
+                    IconButton(onClick = { onNavigate("home") }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
                     }
-                )
-            }
-
-            Text("Salary (typical)", style = MaterialTheme.typography.titleSmall)
-            Text(info.salary, fontSize = 14.sp)
-
-            Text("Roadmap", style = MaterialTheme.typography.titleSmall)
-            info.roadmap.forEachIndexed { idx, step ->
-                Text("${idx + 1}. $step", fontSize = 14.sp)
-            }
-
-            if (info.colleges.isNotEmpty()) {
-                Text("Suggested colleges", style = MaterialTheme.typography.titleSmall)
-                info.colleges.forEach { c -> Text("• $c", fontSize = 14.sp) }
-            }
-        }
-    }
-}
-
-// ---------------------------- Skill chips & helper chips ----------------------------
-@Composable
-private fun SkillChip(text: String, bgColor: Color, onClick: () -> Unit) {
-    // darker text if bg is light (simple contrast)
-    val luminance = bgColor.red * 0.2126f + bgColor.green * 0.7152f + bgColor.blue * 0.0722f
-    val contentColor = if (luminance > 0.6f) Color.Black else Color.White
-
-    Surface(
-        tonalElevation = 1.dp,
-        shape = RoundedCornerShape(14.dp),
-        color = bgColor.copy(alpha = 0.18f),
-        modifier = Modifier
-            .clickable { onClick() }
-    ) {
-        Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .background(color = bgColor, shape = RoundedCornerShape(8.dp))
+                }
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text, fontSize = 12.sp, color = contentColor)
         }
-    }
-}
-
-@Composable
-private fun MoreChip(text: String, onClick: () -> Unit, isPrimary: Boolean = true) {
-    val bg = if (isPrimary) MaterialTheme.colorScheme.primary else Color.LightGray
-    val fg = if (isPrimary) MaterialTheme.colorScheme.onPrimary else Color.Black
-
-    Surface(
-        tonalElevation = 1.dp,
-        shape = RoundedCornerShape(14.dp),
-        color = bg,
-        modifier = Modifier.clickable { onClick() }
-    ) {
-        Text(text, modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp), fontSize = 12.sp, color = fg, textDecoration = if (!isPrimary) TextDecoration.Underline else TextDecoration.None)
-    }
-}
-
-// ---------------------------- BarChart (same as earlier) ----------------------------
-@Composable
-private fun BarChart(
-    scores: Map<String, Int>,
-    modifier: Modifier = Modifier,
-    chartHeight: Dp = 140.dp,
-    barWidth: Dp = 44.dp,
-    barSpacing: Dp = 12.dp
-) {
-    if (scores.isEmpty()) {
-        Column(modifier = modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("No score data to show", style = MaterialTheme.typography.bodyMedium)
-        }
-        return
-    }
-
-    val entries = scores.entries.sortedByDescending { it.value }.toList()
-    val maxValue = (entries.maxOf { it.value }).coerceAtLeast(1)
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.Bottom
-    ) {
-        entries.forEach { (key, value) ->
-            Spacer(Modifier.size(barSpacing / 2))
-
-            val fraction = value.toFloat() / maxValue.toFloat()
-            val animated by animateFloatAsState(targetValue = fraction, animationSpec = tween(durationMillis = 600))
-
-            Column(
-                modifier = Modifier
-                    .wrapContentWidth()
-                    .padding(horizontal = 4.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Bottom
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Gradient header
+            ElevatedCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                colors = CardDefaults.elevatedCardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
             ) {
-                Text(text = value.toString(), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 6.dp))
-
-                Box(modifier = Modifier.size(width = barWidth, height = chartHeight), contentAlignment = Alignment.BottomCenter) {
-                    Box(modifier = Modifier.size(width = barWidth, height = chartHeight).background(Color(0xFFEDEDED), shape = RoundedCornerShape(8.dp)))
-                    Box(
-                        modifier = Modifier
-                            .size(width = barWidth, height = (chartHeight * animated))
-                            .background(
-                                Brush.verticalGradient(colors = listOf(Color(0xFF5E9CFF), Color(0xFF1E88E5)), tileMode = TileMode.Clamp),
-                                shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
+                Box(
+                    modifier = Modifier
+                        .background(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primary,
+                                    MaterialTheme.colorScheme.primaryContainer
+                                )
                             )
+                        )
+                        .padding(16.dp)
+                ) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = "Great job finishing the quiz!",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
+                        )
+                        val topKey = sorted.firstOrNull()?.key
+                        if (topKey != null) {
+                            Text(
+                                text = "Your top match: $topKey",
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Text(
+                                text = "Swipe through cards to explore how different paths fit your strengths.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.95f)
+                            )
+                        } else {
+                            Text(
+                                text = "We couldn't compute scores yet. You can still explore paths below.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.95f)
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (sorted.isEmpty()) {
+                Text(
+                    text = "No scores found. Try retaking the quiz.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Button(onClick = { onNavigate("quiz") }) {
+                    Text("Retake quiz")
+                }
+            } else {
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) { page ->
+                    val (careerKey, score) = sorted[page]
+                    val info = CAREER_INFO[careerKey]
+                        ?: CareerInfo(
+                            key = careerKey,
+                            title = careerKey,
+                            short = "A good potential path based on your answers.",
+                            skills = emptyList(),
+                            vibeTags = emptyList()
+                        )
+
+                    val maxScore = sorted.maxOfOrNull { it.value }?.coerceAtLeast(1) ?: 1
+                    val percent = (score * 100f / maxScore).toInt().coerceIn(0, 100)
+
+                    val suggestedColleges = collegesForCareer(careerKey, colleges)
+                    val suggestedScholarships = scholarshipsForCareer(careerKey, scholarships)
+
+                    val isSaved = savedCareerKey == careerKey
+
+                    CareerSwipeCard(
+                        info = info,
+                        score = score,
+                        percent = percent,
+                        answers = answers,
+                        colleges = suggestedColleges,
+                        scholarships = suggestedScholarships,
+                        isSaved = isSaved,
+                        onSave = {
+                            scope.launch {
+                                // Save key so Home + Dashboard can show it
+                                DataStoreManager.saveString(
+                                    context,
+                                    "saved_career_key",
+                                    careerKey
+                                )
+                                // Gamification boost (one-time XP + badge)
+                                viewModel.onCareerPathSaved()
+                            }
+                        },
+                        onSeeColleges = { onNavigate("colleges") },
+                        onSeeScholarships = { onNavigate("scholarships") }
                     )
                 }
 
-                Text(text = key, fontSize = 12.sp, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(barWidth + 8.dp).padding(top = 6.dp))
-            }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val pageCount = sorted.size
+                    repeat(pageCount) { index ->
+                        val selected = pagerState.currentPage == index
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 3.dp)
+                                .size(if (selected) 10.dp else 7.dp)
+                                .background(
+                                    color = if (selected)
+                                        MaterialTheme.colorScheme.primary
+                                    else
+                                        MaterialTheme.colorScheme.surfaceVariant,
+                                    shape = CircleShape
+                                )
+                        )
+                    }
+                }
+                Text(
+                    text = "Swipe left / right to see other matches.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
 
-            Spacer(Modifier.size(barSpacing / 2))
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { onNavigate("dashboard") },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("View dashboard")
+                    }
+                    Button(
+                        onClick = { onNavigate("results") },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("See score breakdown")
+                    }
+                }
+            }
         }
     }
 }
 
-// ---------------------------- FlowLayout implementation ----------------------------
 @Composable
-fun FlowLayout(
-    modifier: Modifier = Modifier,
-    horizontalGap: Dp = 8.dp,
-    verticalGap: Dp = 8.dp,
-    content: @Composable () -> Unit
+private fun CareerSwipeCard(
+    info: CareerInfo,
+    score: Int,
+    percent: Int,
+    answers: QuizAnswers,
+    colleges: List<College>,
+    scholarships: List<Scholarship>,
+    isSaved: Boolean,
+    onSave: () -> Unit,
+    onSeeColleges: () -> Unit,
+    onSeeScholarships: () -> Unit
 ) {
-    Layout(content = content, modifier = modifier) { measurables, constraints ->
-        val horizontalGapPx = horizontalGap.roundToPx()
-        val verticalGapPx = verticalGap.roundToPx()
-
-        val rows = mutableListOf<MutableList<androidx.compose.ui.layout.Placeable>>()
-        val rowHeights = mutableListOf<Int>()
-
-        var currentRow = mutableListOf<androidx.compose.ui.layout.Placeable>()
-        var currentRowWidth = 0
-        var currentRowHeight = 0
-
-        val maxWidth = constraints.maxWidth
-
-        measurables.forEach { measurable ->
-            val placeable = measurable.measure(constraints.copy(minWidth = 0))
-            val itemWidth = placeable.width
-            val itemHeight = placeable.height
-
-            if (currentRow.isEmpty()) {
-                currentRow.add(placeable)
-                currentRowWidth = itemWidth
-                currentRowHeight = itemHeight
-            } else if (currentRowWidth + horizontalGapPx + itemWidth <= maxWidth) {
-                currentRow.add(placeable)
-                currentRowWidth += horizontalGapPx + itemWidth
-                currentRowHeight = max(currentRowHeight, itemHeight)
-            } else {
-                rows.add(currentRow)
-                rowHeights.add(currentRowHeight)
-                currentRow = mutableListOf(placeable)
-                currentRowWidth = itemWidth
-                currentRowHeight = itemHeight
-            }
-        }
-
-        if (currentRow.isNotEmpty()) {
-            rows.add(currentRow)
-            rowHeights.add(currentRowHeight)
-        }
-
-        val totalHeight = rowHeights.sum() + verticalGapPx * max(0, rowHeights.size - 1)
-
-        layout(constraints.maxWidth, totalHeight) {
-            var y = 0
-            for (rowIndex in rows.indices) {
-                val row = rows[rowIndex]
-                var x = 0
-                val rowHeight = rowHeights[rowIndex]
-                for (placeable in row) {
-                    placeable.placeRelative(x, y + (rowHeight - placeable.height) / 2)
-                    x += placeable.width + horizontalGapPx
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = info.title,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = info.short,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-                y += rowHeight + verticalGapPx
+                MatchPill(percent = percent, score = score)
+            }
+
+            Divider()
+
+            // Skills
+            if (info.skills.isNotEmpty()) {
+                Text(
+                    text = "Key skills",
+                    style = MaterialTheme.typography.titleSmall
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    info.skills.forEach { skill ->
+                        PillChip(text = skill)
+                    }
+                }
+            }
+
+            // Why it fits
+            val reasonChips = reasonChipsForCareer(info.key, answers)
+            val vibeChips = info.vibeTags
+            val allChips = reasonChips + vibeChips
+
+            if (allChips.isNotEmpty()) {
+                Text(
+                    text = "This suits you because…",
+                    style = MaterialTheme.typography.titleSmall
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    allChips.forEach { text ->
+                        PillChip(
+                            text = text,
+                            tone = MaterialTheme.colorScheme.secondaryContainer
+                        )
+                    }
+                }
+            }
+
+            // Colleges
+            if (colleges.isNotEmpty()) {
+                Text(
+                    text = "Good colleges to explore",
+                    style = MaterialTheme.typography.titleSmall
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    colleges.take(3).forEach { c ->
+                        MiniTagChip(
+                            icon = Icons.Filled.School,
+                            text = c.name
+                        )
+                    }
+                }
+            }
+
+            // Scholarships
+            if (scholarships.isNotEmpty()) {
+                Text(
+                    text = "Scholarships that might fit",
+                    style = MaterialTheme.typography.titleSmall
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    scholarships.take(3).forEach { s ->
+                        MiniTagChip(
+                            icon = Icons.Filled.Star,
+                            text = s.name
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = onSave,
+                    modifier = Modifier.weight(1f),
+                    enabled = !isSaved
+                ) {
+                    Text(if (isSaved) "Path saved" else "Save this path")
+                }
+                OutlinedButton(
+                    onClick = onSeeColleges,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Explore colleges")
+                }
+            }
+
+            OutlinedButton(
+                onClick = onSeeScholarships,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp)
+            ) {
+                Text("View scholarships")
             }
         }
     }
+}
+
+@Composable
+private fun PillChip(
+    text: String,
+    tone: Color = MaterialTheme.colorScheme.primaryContainer
+) {
+    Surface(
+        shape = CircleShape,
+        color = tone,
+        tonalElevation = 1.dp
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+        )
+    }
+}
+
+@Composable
+private fun MiniTagChip(
+    icon: ImageVector,
+    text: String
+) {
+    Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        tonalElevation = 0.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelMedium
+            )
+        }
+    }
+}
+
+@Composable
+private fun MatchPill(
+    percent: Int,
+    score: Int
+) {
+    Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "$percent%",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = "Match (${score} pts)",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+// --- Reason chips & helpers (same as before) --------------------------------
+
+private fun reasonChipsForCareer(
+    key: String,
+    a: QuizAnswers
+): List<String> {
+    val list = mutableListOf<String>()
+
+    when (key) {
+        "Engineering" -> {
+            if (a.favoriteSubject.equals("math", true) || a.favoriteSubject.equals("science", true)) {
+                list += "Strong in STEM subjects"
+            }
+            if (a.problemSolving.equals("analytical", true)) {
+                list += "Enjoys analytical problem solving"
+            }
+            if (a.handsOnWork.equals("yes", true)) {
+                list += "Likes practical, hands‑on work"
+            }
+        }
+        "Design" -> {
+            if (a.favoriteSubject.equals("arts", true)) {
+                list += "Creative & arts oriented"
+            }
+            if (a.problemSolving.equals("creative", true)) {
+                list += "Enjoys creative challenges"
+            }
+            if (a.creativity.equals("very", true)) {
+                list += "Wants creativity in career"
+            }
+        }
+        "Management", "Entrepreneurship" -> {
+            if (a.jobPreference.equals("business", true)) {
+                list += "Interested in business / entrepreneurship"
+            }
+            if (a.leadership.equals("very", true) || a.leadership.equals("somewhat", true)) {
+                list += "Comfortable taking leadership roles"
+            }
+            if (a.communication.equals("public", true)) {
+                list += "Enjoys presenting & speaking"
+            }
+        }
+        "Science" -> {
+            if (a.favoriteSubject.equals("science", true)) {
+                list += "Science is a favourite subject"
+            }
+            if (a.problemSolving.equals("analytical", true)) {
+                list += "Enjoys research & analysis"
+            }
+        }
+    }
+
+    return list.distinct()
+}
+
+/**
+ * Uses tags / type fields from colleges.json.  [oai_citation:1‡colleges.json](file-service://file-H7XmmBrYdMVkK56Urtggea)
+ */
+private fun collegesForCareer(
+    key: String,
+    all: List<College>
+): List<College> {
+    return all.filter { college ->
+        val tags: List<String> = college.tags ?: emptyList()
+        val type = college.type
+
+        when (key) {
+            "Engineering" ->
+                (type?.contains("Engineering", true) == true) ||
+                        tags.any {
+                            it.contains("Engineering", true) ||
+                                    it.contains("Computer", true) ||
+                                    it.contains("AI", true)
+                        }
+
+            "Design" ->
+                tags.any { it.contains("Design", true) || it.contains("UI/UX", true) }
+
+            "Management", "Entrepreneurship" ->
+                (type?.contains("Management", true) == true) ||
+                        tags.any {
+                            it.contains("Management", true) ||
+                                    it.contains("Business", true)
+                        }
+
+            "Science" ->
+                tags.any { it.contains("Science", true) }
+
+            else -> false
+        }
+    }.sortedBy { college ->
+        college.rank ?: Int.MAX_VALUE
+    }.take(4)
+}
+
+/**
+ * Uses tags from scholarships.json.  [oai_citation:2‡scholarships.json](file-service://file-Rj5TSnBc7wA3vMxtF7A2j1)
+ */
+private fun scholarshipsForCareer(
+    key: String,
+    all: List<Scholarship>
+): List<Scholarship> {
+    return all.filter { s ->
+        val tags = s.tags ?: emptyList()
+        when (key) {
+            "Engineering" ->
+                tags.any {
+                    it.equals("STEM", true) ||
+                            it.equals("Tech", true) ||
+                            it.equals("Science", true) ||
+                            it.equals("Merit", true)
+                }
+
+            "Design" ->
+                tags.any {
+                    it.equals("Merit", true) ||
+                            it.equals("Private", true)
+                }
+
+            "Management", "Entrepreneurship" ->
+                tags.any {
+                    it.equals("Need-based", true) ||
+                            it.equals("Merit", true) ||
+                            it.contains("Business", true)
+                }
+
+            "Science" ->
+                tags.any {
+                    it.equals("Science", true) ||
+                            it.equals("Merit", true)
+                }
+
+            else -> false
+        }
+    }.take(4)
 }

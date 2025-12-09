@@ -4,8 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.adityayadav.careerguidancecommunity.data.CollegeRepository
-import com.adityayadav.careerguidancecommunity.data.College
 import com.adityayadav.careerguidancecommunity.data.DataStoreManager
+import com.adityayadav.careerguidancecommunity.data.model.College
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -25,150 +25,141 @@ data class CollegesUiState(
 )
 
 class CollegesViewModel(application: Application) : AndroidViewModel(application) {
+
     private val ctx = application.applicationContext
 
-    // persistent keys already in DataStoreManager, we'll use "colleges_filter" and "colleges_search"
+    // DataStore Keys
     private val FILTER_KEY = "colleges_filter"
     private val SEARCH_KEY = "colleges_search"
 
-    // internal flows
+    // Search & filter state flows
     private val _searchQueryFlow = MutableStateFlow("")
     private val _filterFlow = MutableStateFlow("All")
-    private val _remoteUrl = MutableStateFlow<String?>(null) // set this if you want to fetch remote JSON
+    private val _remoteUrl = MutableStateFlow<String?>(null)
 
-    // ui state
+    // Final UI state
     private val _uiState = MutableStateFlow(CollegesUiState(isLoading = true))
     val uiState: StateFlow<CollegesUiState> = _uiState.asStateFlow()
 
     init {
-        // restore saved filter + search from DataStore (if present)
         viewModelScope.launch {
-            // attempt to read saved values (DataStoreManager.profileFlow style)
-            // We'll use DataStoreManager.profileFlow only if it stores generic keys; here we directly read preferences via context.dataStore
-            // But to avoid adding new DataStore apis, we'll reuse DataStoreManager with new helper functions.
-            // If DataStoreManager in your project doesn't expose generic read, you can adapt this - for now we'll try to read via DataStoreManager.profileFlow as fallback.
-            // Simple approach: load persisted filter/search if you previously saved via DataStoreManager (we'll save via DataStoreManager below).
-            // Try to load saved via DataStoreManager.profileFlow (it returns a Profile) — if you need separate keys, you can implement them in DataStoreManager.
-            // For now, initialize from DataStoreManager.profileFlow if present:
-            try {
-                val profile = DataStoreManager.profileFlow(ctx).first()
-                // if you saved these keys inside profile.goal or name, adapt accordingly.
-                // We'll not overwrite, default remains "All".
-            } catch (_: Exception) { /* ignore */ }
-
-            // Kick off initial load
             loadAndFilter()
         }
 
-        // combine search (debounced) + filter to re-run filter
+        // Refilter when search or filter changes
         viewModelScope.launch {
             _searchQueryFlow
-                .debounce(350)
-                .distinctUntilChanged()
-                .combine(_filterFlow) { search, filter -> Pair(search, filter) }
+                .debounce(300)
+                .combine(_filterFlow) { search, filter -> search to filter }
                 .collect { (search, filter) ->
-                    // apply filtering on background thread
-                    applyLocalFilter(search ?: "", filter ?: "All")
+                    applyLocalFilter(search, filter)
                 }
         }
     }
 
-    /**
-     * Optionally set a remote URL to fetch JSON (public open data). If set, `loadAndFilter()` will try remote then fallback.
-     */
+    fun onSearchChanged(text: String) {
+        _searchQueryFlow.value = text
+        _uiState.update { it.copy(searchQuery = text) }
+
+        // Persist search
+        viewModelScope.launch {
+            DataStoreManager.saveString(ctx, SEARCH_KEY, text)
+        }
+    }
+
+    fun onFilterSelected(filter: String) {
+        _filterFlow.value = filter
+        _uiState.update { it.copy(selectedFilter = filter) }
+
+        // Persist filter
+        viewModelScope.launch {
+            DataStoreManager.saveString(ctx, FILTER_KEY, filter)
+        }
+    }
+
     fun setRemoteJsonUrl(url: String?) {
         _remoteUrl.value = url
     }
 
-    /**
-     * Public: called by UI when search text changes
-     */
-    fun onSearchChanged(text: String) {
-        _searchQueryFlow.value = text
-        // persist search to DataStore (optional)
-        viewModelScope.launch { DataStoreManager.saveSearch(ctx, "colleges_search", text) }
-        // update ui state's searchQuery quickly (without waiting for debounce)
-        _uiState.update { it.copy(searchQuery = text) }
-    }
-
-    /**
-     * Public: called when chip filter changes
-     */
-    fun onFilterSelected(filter: String) {
-        _filterFlow.value = filter
-        _uiState.update { it.copy(selectedFilter = filter) }
-        // persist filter
-        viewModelScope.launch { DataStoreManager.saveFilter(ctx, "colleges_filter", filter) }
-    }
-
-    /**
-     * Load remote (if URL is set) else load local assets; then apply current search+filter
-     */
     fun loadAndFilter() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
             try {
-                // 1) attempt remote if provided
-                val remote = _remoteUrl.value
-                if (!remote.isNullOrBlank()) {
-                    val remoteList = fetchCollegesRemote(remote)
-                    if (remoteList.isNotEmpty()) {
-                        CollegeRepository.replaceCached(remoteList) // helper we'll add to repository
+                _uiState.update { it.copy(isLoading = true, error = null) }
+
+                // Try remote fetch
+                _remoteUrl.value?.let { remoteUrl ->
+                    if (remoteUrl.isNotBlank()) {
+                        val remoteList = fetchRemote(remoteUrl)
+                        if (remoteList.isNotEmpty()) {
+                            CollegeRepository.replaceCached(remoteList)
+                        }
                     }
                 }
 
-                // 2) load local assets (or cached remote)
-                val all = withContext(Dispatchers.IO) { CollegeRepository.loadAll(ctx) }
-                // apply current immediate filter + search
-                applyLocalFilter(_searchQueryFlow.value, _filterFlow.value)
+                // Load local JSON
+                CollegeRepository.loadAll(ctx)
+
+                // Apply filter & search
+                applyLocalFilter(
+                    search = _searchQueryFlow.value,
+                    filter = _filterFlow.value
+                )
+
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = e.message ?: "Failed to load data") }
+                _uiState.update { it.copy(error = e.message ?: "Load failed") }
             } finally {
                 _uiState.update { it.copy(isLoading = false) }
             }
         }
     }
 
-    private suspend fun fetchCollegesRemote(urlString: String): List<College> = withContext(Dispatchers.IO) {
-        try {
-            val url = URL(urlString)
-            val conn = url.openConnection() as HttpsURLConnection
-            conn.requestMethod = "GET"
-            conn.connectTimeout = 8_000
-            conn.readTimeout = 8_000
-            conn.doInput = true
-            conn.connect()
-            val code = conn.responseCode
-            if (code != 200) throw IOException("Remote fetch failed: $code")
-            val stream = conn.inputStream.bufferedReader().use { it.readText() }
-            // parse with kotlinx.serialization
-            val list = Json { ignoreUnknownKeys = true }.decodeFromString<List<College>>(stream)
-            list
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
+    private suspend fun fetchRemote(urlString: String): List<College> =
+        withContext(Dispatchers.IO) {
+            try {
+                val url = URL(urlString)
+                val conn = url.openConnection() as HttpsURLConnection
+                conn.requestMethod = "GET"
+                conn.connectTimeout = 8000
+                conn.readTimeout = 8000
+                conn.connect()
 
-    private fun applyLocalFilter(search: String?, filter: String?) {
+                if (conn.responseCode != 200) return@withContext emptyList()
+
+                val json = conn.inputStream.bufferedReader().readText()
+                Json { ignoreUnknownKeys = true }.decodeFromString(json)
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
+
+    private fun applyLocalFilter(search: String, filter: String) {
         viewModelScope.launch(Dispatchers.Default) {
             try {
                 val all = CollegeRepository.loadAll(ctx)
+
+                val q = search.lowercase()
+
                 val filtered = all.filter { c ->
-                    val matchesFilter = when (filter ?: "All") {
+
+                    val matchesFilter = when (filter) {
                         "All" -> true
-                        else -> c.type?.equals(filter ?: "", ignoreCase = true) ?: true
+                        else -> c.type?.equals(filter, ignoreCase=true) ?: false
                     }
-                    val q = (search ?: "").trim().lowercase()
-                    val matchesSearch = q.isEmpty() || (
-                            c.name.lowercase().contains(q) ||
-                                    (c.city?.lowercase()?.contains(q) ?: false) ||
-                                    c.courses.any { it.lowercase().contains(q) }
-                            )
+
+                    val matchesSearch =
+                        q.isBlank() ||
+                                c.name.lowercase().contains(q) ||
+                                (c.city?.lowercase()?.contains(q) ?: false) ||
+                                (c.state?.lowercase()?.contains(q) ?: false) ||
+                                (c.tags?.any { it.lowercase().contains(q) } ?: false)
+
                     matchesFilter && matchesSearch
                 }
+
                 _uiState.update { it.copy(items = filtered, error = null) }
+
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = e.message ?: "Filter failed") }
+                _uiState.update { it.copy(error = e.message) }
             }
         }
     }

@@ -1,9 +1,10 @@
 package com.adityayadav.careerguidancecommunity.viewmodel
+
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.adityayadav.careerguidancecommunity.data.ScholarshipRepository
-import com.adityayadav.careerguidancecommunity.data.Scholarship
+import com.adityayadav.careerguidancecommunity.data.model.Scholarship
 import com.adityayadav.careerguidancecommunity.data.DataStoreManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -23,6 +24,7 @@ data class ScholarshipsUiState(
 )
 
 class ScholarshipViewModel(application: Application) : AndroidViewModel(application) {
+
     private val ctx = application.applicationContext
 
     private val _searchQuery = MutableStateFlow("")
@@ -33,78 +35,98 @@ class ScholarshipViewModel(application: Application) : AndroidViewModel(applicat
     val uiState: StateFlow<ScholarshipsUiState> = _uiState.asStateFlow()
 
     init {
-        viewModelScope.launch {
-            loadAndFilter()
-        }
+        viewModelScope.launch { loadAndFilter() }
 
+        // Live filtering on change
         viewModelScope.launch {
-            _searchQuery.debounce(350).distinctUntilChanged().combine(_categoryFlow) { s, c -> s to c }
+            _searchQuery
+                .debounce(350)
+                .combine(_categoryFlow) { s, c -> s to c }
                 .collect { (s, c) -> applyFilter(s, c) }
         }
     }
 
-    fun setRemoteJsonUrl(url: String?) { _remoteUrl.value = url }
+    fun setRemoteJsonUrl(url: String?) {
+        _remoteUrl.value = url
+    }
 
     fun onSearchChanged(text: String) {
         _searchQuery.value = text
         _uiState.update { it.copy(searchQuery = text) }
-        viewModelScope.launch { DataStoreManager.saveSearch(ctx, "scholarships_search", text) }
+
+        viewModelScope.launch {
+            DataStoreManager.saveString(ctx, "scholarships_search", text)
+        }
     }
 
     fun onCategorySelected(cat: String) {
         _categoryFlow.value = cat
         _uiState.update { it.copy(selectedCategory = cat) }
-        viewModelScope.launch { DataStoreManager.saveFilter(ctx, "scholarships_filter", cat) }
+
+        viewModelScope.launch {
+            DataStoreManager.saveString(ctx, "scholarships_filter", cat)
+        }
     }
 
     fun loadAndFilter() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
+
             try {
                 val remote = _remoteUrl.value
                 if (!remote.isNullOrBlank()) {
                     val remoteList = fetchRemote(remote)
-                    if (remoteList.isNotEmpty()) ScholarshipRepository.replaceCached(remoteList)
+                    if (remoteList.isNotEmpty()) {
+                        ScholarshipRepository.replaceCached(remoteList)
+                    }
                 }
+
                 applyFilter(_searchQuery.value, _categoryFlow.value)
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = e.message ?: "Failed", isLoading = false) }
+                _uiState.update { it.copy(error = e.message ?: "Failed") }
             } finally {
                 _uiState.update { it.copy(isLoading = false) }
             }
         }
     }
 
-    private suspend fun fetchRemote(urlString: String) = withContext(Dispatchers.IO) {
-        try {
-            val url = URL(urlString)
-            val conn = url.openConnection() as HttpsURLConnection
-            conn.requestMethod = "GET"
-            conn.connectTimeout = 8000
-            conn.readTimeout = 8000
-            conn.connect()
-            if (conn.responseCode != 200) return@withContext emptyList<Scholarship>()
-            val text = conn.inputStream.bufferedReader().use { it.readText() }
-            Json { ignoreUnknownKeys = true }.decodeFromString<List<Scholarship>>(text)
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    private fun applyFilter(search: String?, category: String?) {
-        viewModelScope.launch(Dispatchers.Default) {
+    private suspend fun fetchRemote(urlString: String): List<Scholarship> =
+        withContext(Dispatchers.IO) {
             try {
-                val all = ScholarshipRepository.loadAll(ctx)
-                val filtered = all.filter { s ->
-                    val matchesCat = (category == "All") || s.category.equals(category ?: "", ignoreCase = true)
-                    val q = (search ?: "").trim().lowercase()
-                    val matchesSearch = q.isEmpty() || s.name.lowercase().contains(q) || (s.eligibility?.lowercase()?.contains(q) ?: false)
-                    matchesCat && matchesSearch
-                }
-                _uiState.update { it.copy(items = filtered, error = null) }
+                val url = URL(urlString)
+                val conn = url.openConnection() as HttpsURLConnection
+                conn.requestMethod = "GET"
+                conn.connectTimeout = 8000
+                conn.readTimeout = 8000
+                conn.connect()
+
+                if (conn.responseCode != 200) return@withContext emptyList()
+
+                val json = conn.inputStream.bufferedReader().use { it.readText() }
+                Json { ignoreUnknownKeys = true }.decodeFromString(json)
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = e.message ?: "Filter failed") }
+                emptyList()
             }
+        }
+
+    private fun applyFilter(search: String, category: String) {
+        viewModelScope.launch(Dispatchers.Default) {
+
+            val all = ScholarshipRepository.loadAll(ctx)
+            val q = search.lowercase()
+
+            val filtered = all.filter { s ->
+                val matchCategory = category == "All" ||
+                        s.category.equals(category, ignoreCase = true)
+
+                val matchSearch = q.isBlank() ||
+                        s.name.lowercase().contains(q) ||
+                        (s.eligibility?.lowercase()?.contains(q) ?: false)
+
+                matchCategory && matchSearch
+            }
+
+            _uiState.update { it.copy(items = filtered, error = null) }
         }
     }
 }

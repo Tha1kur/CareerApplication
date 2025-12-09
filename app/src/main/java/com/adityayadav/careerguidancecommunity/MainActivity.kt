@@ -23,8 +23,11 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun AppRoot() {
-    val navController = rememberNavController()
-    Surface {
-        AppNavHost(navController = navController)
+    // Theme reads DataStore internally — nothing else required
+    CareerGuidanceCommunityTheme {
+        val navController = rememberNavController()
+        Surface {
+            AppNavHost(navController = navController)
+        }
     }
 }

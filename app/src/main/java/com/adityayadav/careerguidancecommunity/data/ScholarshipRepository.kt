@@ -1,11 +1,13 @@
 package com.adityayadav.careerguidancecommunity.data
 
 import android.content.Context
+import com.adityayadav.careerguidancecommunity.data.model.Scholarship
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
 object ScholarshipRepository {
-    private var cached = emptyList<Scholarship>()
+
+    private var cached: List<Scholarship> = emptyList()
 
     fun loadAll(context: Context): List<Scholarship> {
         if (cached.isNotEmpty()) return cached
@@ -20,12 +22,11 @@ object ScholarshipRepository {
         return cached
     }
 
-    fun filter(category: String): List<Scholarship> =
-        cached.filter { it.category.equals(category, ignoreCase = true) }
     fun replaceCached(list: List<Scholarship>) {
         cached = list
     }
 
-    fun getById(id: String): Scholarship? =
-        cached.firstOrNull { it.id == id }
+    fun getById(id: String): Scholarship? {
+        return cached.firstOrNull { it.id == id }
+    }
 }

@@ -1,0 +1,75 @@
+[
+  {
+    "id": "favoriteSubject",
+    "question": "Which subject do you enjoy most?",
+    "options": [
+      { "value": "math", "label": "Mathematics" },
+      { "value": "science", "label": "Science" },
+      { "value": "arts", "label": "Arts & Literature" },
+      { "value": "commerce", "label": "Commerce & Business" }
+    ]
+  },
+  {
+    "id": "handsOnWork",
+    "question": "Do you like practical hands-on work?",
+    "options": [
+      { "value": "yes", "label": "Yes, I love working with my hands" },
+      { "value": "no", "label": "No, I prefer theoretical work" },
+      { "value": "maybe", "label": "Sometimes, depending on the task" }
+    ]
+  },
+  {
+    "id": "jobPreference",
+    "question": "What type of career do you prefer?",
+    "options": [
+      { "value": "government", "label": "Government Job (Security & Stability)" },
+      { "value": "private", "label": "Private Job (Growth & Innovation)" },
+      { "value": "business", "label": "Own Business (Entrepreneurship)" }
+    ]
+  },
+  {
+    "id": "workEnvironment",
+    "question": "What work environment suits you best?",
+    "options": [
+      { "value": "team", "label": "Team collaboration" },
+      { "value": "independent", "label": "Independent work" },
+      { "value": "mixed", "label": "Mix of both" }
+    ]
+  },
+  {
+    "id": "leadership",
+    "question": "How comfortable are you with leadership roles?",
+    "options": [
+      { "value": "very", "label": "Very comfortable, I enjoy leading" },
+      { "value": "somewhat", "label": "Somewhat comfortable" },
+      { "value": "not", "label": "Prefer to be a team member" }
+    ]
+  },
+  {
+    "id": "problemSolving",
+    "question": "What type of problems do you enjoy solving?",
+    "options": [
+      { "value": "analytical", "label": "Analytical & Logical problems" },
+      { "value": "creative", "label": "Creative & Design challenges" },
+      { "value": "people", "label": "People & Social issues" }
+    ]
+  },
+  {
+    "id": "creativity",
+    "question": "How important is creativity in your ideal career?",
+    "options": [
+      { "value": "very", "label": "Very important" },
+      { "value": "somewhat", "label": "Somewhat important" },
+      { "value": "not", "label": "Not very important" }
+    ]
+  },
+  {
+    "id": "communication",
+    "question": "How do you prefer to communicate and interact?",
+    "options": [
+      { "value": "public", "label": "Public speaking & presentations" },
+      { "value": "written", "label": "Written communication" },
+      { "value": "oneonone", "label": "One-on-one interactions" }
+    ]
+  }
+]
