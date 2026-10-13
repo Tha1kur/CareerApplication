@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.adityayadav.careerguidancecommunity.data.DataStoreManager
 import com.adityayadav.careerguidancecommunity.data.model.UserProgress
+import com.adityayadav.careerguidancecommunity.data.model.calculateLevel
 import com.adityayadav.careerguidancecommunity.viewmodel.QuizViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -229,7 +230,7 @@ fun GamificationDashboard(
                             Spacer(modifier = Modifier.height(8.dp))
 
                             LinearProgressIndicator(
-                                progress = levelInfo.progressFraction.coerceIn(0f, 1f),
+                                progress = { levelInfo.progressFraction.coerceIn(0f, 1f) },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(6.dp),
@@ -328,27 +329,7 @@ fun GamificationDashboard(
     }
 }
 
-/* ---------- Level & ring ---------- */
-
-private data class LevelInfo(
-    val level: Int,
-    val progressFraction: Float,
-    val currentXp: Int = 0,
-    val nextLevelXp: Int = 0
-)
-
-private fun calculateLevel(points: Int): LevelInfo {
-    val xpPerLevel = 150
-    val level = (points / xpPerLevel) + 1
-    val currentXp = points % xpPerLevel
-    val fraction = (currentXp.toFloat() / xpPerLevel.toFloat()).coerceIn(0f, 1f)
-    return LevelInfo(
-        level = level,
-        progressFraction = fraction,
-        currentXp = currentXp,
-        nextLevelXp = xpPerLevel
-    )
-}
+/* ---------- Level ring ---------- */
 
 @Composable
 private fun LevelRing(

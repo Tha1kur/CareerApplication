@@ -10,16 +10,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -39,6 +42,7 @@ fun ResultsScreen(
 ) {
     val scores by viewModel.scores.collectAsState(initial = emptyMap())
     val answers by viewModel.answers.collectAsState()
+    val history by viewModel.quizHistory.collectAsState()
 
     LaunchedEffect(Unit) {
         try {
@@ -79,6 +83,7 @@ fun ResultsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -172,7 +177,7 @@ fun ResultsScreen(
                             text = "Career scores",
                             style = MaterialTheme.typography.titleMedium
                         )
-                        Divider()
+                        HorizontalDivider()
                         Spacer(modifier = Modifier.height(4.dp))
 
                         val maxScore = sorted.maxOfOrNull { it.value }?.coerceAtLeast(1) ?: 1
@@ -199,7 +204,7 @@ fun ResultsScreen(
                                     )
                                 }
                                 LinearProgressIndicator(
-                                    progress = fraction.coerceIn(0f, 1f),
+                                    progress = { fraction.coerceIn(0f, 1f) },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(6.dp),
@@ -209,6 +214,70 @@ fun ResultsScreen(
                             }
 
                             Spacer(modifier = Modifier.height(4.dp))
+                        }
+                    }
+                }
+
+                if (history.isNotEmpty()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium,
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Quiz History (${history.size} attempts)",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                TextButton(onClick = { onNavigate("quiz") }) {
+                                    Text("Retake Quiz")
+                                }
+                            }
+                            HorizontalDivider()
+
+                            history.take(4).forEachIndexed { idx, attempt ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = "Attempt #${history.size - idx} • ${attempt.topCareer}",
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                        Text(
+                                            text = attempt.formattedDate,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Surface(
+                                        shape = MaterialTheme.shapes.small,
+                                        color = MaterialTheme.colorScheme.primaryContainer
+                                    ) {
+                                        Text(
+                                            text = "${attempt.topScore} pts",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.adityayadav.careerguidancecommunity.data.ScholarshipRepository
 import com.adityayadav.careerguidancecommunity.data.model.Scholarship
 import com.adityayadav.careerguidancecommunity.data.DataStoreManager
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -23,13 +24,19 @@ data class ScholarshipsUiState(
     val searchQuery: String = ""
 )
 
+@OptIn(FlowPreview::class)
 class ScholarshipViewModel(application: Application) : AndroidViewModel(application) {
 
     private val ctx = application.applicationContext
+    private val json = Json { ignoreUnknownKeys = true }
 
     private val _searchQuery = MutableStateFlow("")
     private val _categoryFlow = MutableStateFlow("All")
     private val _remoteUrl = MutableStateFlow<String?>(null)
+
+    // Bookmarked scholarships
+    private val _savedScholarshipIds = MutableStateFlow<Set<String>>(emptySet())
+    val savedScholarshipIds: StateFlow<Set<String>> = _savedScholarshipIds.asStateFlow()
 
     private val _uiState = MutableStateFlow(ScholarshipsUiState(isLoading = true))
     val uiState: StateFlow<ScholarshipsUiState> = _uiState.asStateFlow()
@@ -37,12 +44,24 @@ class ScholarshipViewModel(application: Application) : AndroidViewModel(applicat
     init {
         viewModelScope.launch { loadAndFilter() }
 
+        viewModelScope.launch {
+            DataStoreManager.savedScholarshipsFlow(ctx).collect { set ->
+                _savedScholarshipIds.value = set
+            }
+        }
+
         // Live filtering on change
         viewModelScope.launch {
             _searchQuery
                 .debounce(350)
                 .combine(_categoryFlow) { s, c -> s to c }
                 .collect { (s, c) -> applyFilter(s, c) }
+        }
+    }
+
+    fun toggleBookmark(scholarshipId: String) {
+        viewModelScope.launch {
+            DataStoreManager.toggleSaveScholarship(ctx, scholarshipId)
         }
     }
 
@@ -94,7 +113,7 @@ class ScholarshipViewModel(application: Application) : AndroidViewModel(applicat
         withContext(Dispatchers.IO) {
             try {
                 val url = URL(urlString)
-                val conn = url.openConnection() as HttpsURLConnection
+                val conn = url.openConnection() as? HttpsURLConnection ?: return@withContext emptyList()
                 conn.requestMethod = "GET"
                 conn.connectTimeout = 8000
                 conn.readTimeout = 8000
@@ -102,8 +121,8 @@ class ScholarshipViewModel(application: Application) : AndroidViewModel(applicat
 
                 if (conn.responseCode != 200) return@withContext emptyList()
 
-                val json = conn.inputStream.bufferedReader().use { it.readText() }
-                Json { ignoreUnknownKeys = true }.decodeFromString(json)
+                val raw = conn.inputStream.bufferedReader().use { it.readText() }
+                json.decodeFromString<List<Scholarship>>(raw)
             } catch (e: Exception) {
                 emptyList()
             }

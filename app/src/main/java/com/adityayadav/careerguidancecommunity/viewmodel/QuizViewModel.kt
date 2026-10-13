@@ -5,11 +5,16 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.adityayadav.careerguidancecommunity.data.DataStoreManager
 import com.adityayadav.careerguidancecommunity.data.model.QuizAnswers
+import com.adityayadav.careerguidancecommunity.data.model.QuizAttempt
 import com.adityayadav.careerguidancecommunity.data.model.UserProgress
+import com.adityayadav.careerguidancecommunity.data.model.calculateQuizScores
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class QuizViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -27,11 +32,30 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
     private val _progress = MutableStateFlow(UserProgress())
     val progress: StateFlow<UserProgress> = _progress
 
+    // Past quiz attempts history
+    private val _quizHistory = MutableStateFlow<List<QuizAttempt>>(emptyList())
+    val quizHistory: StateFlow<List<QuizAttempt>> = _quizHistory
+
     init {
-        // Collect persisted progress from DataStore
+        // Collect persisted progress, answers, and scores from DataStore
         viewModelScope.launch {
             DataStoreManager.progressFlow(ctx).collect { saved ->
                 _progress.value = saved
+            }
+        }
+        viewModelScope.launch {
+            DataStoreManager.quizAnswersFlow(ctx).collect { savedAnswers ->
+                _answers.value = savedAnswers
+            }
+        }
+        viewModelScope.launch {
+            DataStoreManager.quizScoresFlow(ctx).collect { savedScores ->
+                _scores.value = savedScores
+            }
+        }
+        viewModelScope.launch {
+            DataStoreManager.quizHistoryFlow(ctx).collect { savedHistory ->
+                _quizHistory.value = savedHistory
             }
         }
     }
@@ -71,154 +95,8 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // --- Scoring based on aptitudequiz.json values ---------------------------
-    // Values like: math, science, arts, commerce, yes/no/maybe, etc.  [oai_citation:0‡aptitudequiz.json](file-service://file-FCWAnwGvakkKZN3j9yPhzC)
     fun computeScores(): Map<String, Int> {
-        val a = _answers.value
-
-        val scores = mutableMapOf(
-            "Engineering" to 0,
-            "Design" to 0,
-            "Management" to 0,
-            "Science" to 0,
-            "Entrepreneurship" to 0
-        )
-
-        // Favorite subject
-        when (a.favoriteSubject.lowercase()) {
-            "math" -> {
-                scores["Engineering"] = scores["Engineering"]!! + 10
-                scores["Management"] = scores["Management"]!! + 4
-            }
-            "science" -> {
-                scores["Science"] = scores["Science"]!! + 10
-                scores["Engineering"] = scores["Engineering"]!! + 4
-            }
-            "arts" -> {
-                scores["Design"] = scores["Design"]!! + 10
-            }
-            "commerce" -> {
-                scores["Management"] = scores["Management"]!! + 8
-                scores["Entrepreneurship"] = scores["Entrepreneurship"]!! + 8
-            }
-        }
-
-        // Hands‑on preference
-        when (a.handsOnWork.lowercase()) {
-            "yes" -> {
-                scores["Engineering"] = scores["Engineering"]!! + 4
-                scores["Design"] = scores["Design"]!! + 4
-                scores["Science"] = scores["Science"]!! + 2
-            }
-            "no" -> {
-                scores["Science"] = scores["Science"]!! + 3
-                scores["Management"] = scores["Management"]!! + 2
-            }
-            "maybe" -> {
-                scores["Engineering"] = scores["Engineering"]!! + 1
-                scores["Design"] = scores["Design"]!! + 1
-                scores["Science"] = scores["Science"]!! + 1
-            }
-        }
-
-        // Job preference
-        when (a.jobPreference.lowercase()) {
-            "government" -> {
-                scores["Science"] = scores["Science"]!! + 4
-                scores["Management"] = scores["Management"]!! + 4
-            }
-            "private" -> {
-                scores["Engineering"] = scores["Engineering"]!! + 3
-                scores["Design"] = scores["Design"]!! + 3
-                scores["Management"] = scores["Management"]!! + 3
-            }
-            "business" -> {
-                scores["Entrepreneurship"] = scores["Entrepreneurship"]!! + 10
-                scores["Management"] = scores["Management"]!! + 5
-            }
-        }
-
-        // Work environment
-        when (a.workEnvironment.lowercase()) {
-            "team" -> {
-                scores["Management"] = scores["Management"]!! + 4
-                scores["Entrepreneurship"] = scores["Entrepreneurship"]!! + 3
-            }
-            "independent" -> {
-                scores["Design"] = scores["Design"]!! + 3
-                scores["Science"] = scores["Science"]!! + 3
-            }
-            "mixed" -> {
-                scores["Engineering"] = scores["Engineering"]!! + 2
-                scores["Management"] = scores["Management"]!! + 2
-                scores["Entrepreneurship"] = scores["Entrepreneurship"]!! + 2
-            }
-        }
-
-        // Leadership comfort
-        when (a.leadership.lowercase()) {
-            "very" -> {
-                scores["Management"] = scores["Management"]!! + 5
-                scores["Entrepreneurship"] = scores["Entrepreneurship"]!! + 5
-            }
-            "somewhat" -> {
-                scores["Management"] = scores["Management"]!! + 3
-                scores["Entrepreneurship"] = scores["Entrepreneurship"]!! + 3
-            }
-            "not" -> {
-                scores["Design"] = scores["Design"]!! + 2
-                scores["Science"] = scores["Science"]!! + 2
-            }
-        }
-
-        // Type of problem‑solving
-        when (a.problemSolving.lowercase()) {
-            "analytical" -> {
-                scores["Engineering"] = scores["Engineering"]!! + 5
-                scores["Science"] = scores["Science"]!! + 5
-            }
-            "creative" -> {
-                scores["Design"] = scores["Design"]!! + 6
-                scores["Entrepreneurship"] = scores["Entrepreneurship"]!! + 2
-            }
-            "people" -> {
-                scores["Management"] = scores["Management"]!! + 5
-                scores["Entrepreneurship"] = scores["Entrepreneurship"]!! + 4
-            }
-        }
-
-        // Creativity importance
-        when (a.creativity.lowercase()) {
-            "very" -> {
-                scores["Design"] = scores["Design"]!! + 6
-                scores["Entrepreneurship"] = scores["Entrepreneurship"]!! + 4
-            }
-            "somewhat" -> {
-                scores["Design"] = scores["Design"]!! + 3
-                scores["Engineering"] = scores["Engineering"]!! + 2
-            }
-            "not" -> {
-                scores["Engineering"] = scores["Engineering"]!! + 3
-                scores["Science"] = scores["Science"]!! + 3
-            }
-        }
-
-        // Communication style
-        when (a.communication.lowercase()) {
-            "public" -> {
-                scores["Management"] = scores["Management"]!! + 4
-                scores["Entrepreneurship"] = scores["Entrepreneurship"]!! + 4
-            }
-            "written" -> {
-                scores["Science"] = scores["Science"]!! + 3
-                scores["Design"] = scores["Design"]!! + 3
-            }
-            "oneonone" -> {
-                scores["Management"] = scores["Management"]!! + 3
-                scores["Entrepreneurship"] = scores["Entrepreneurship"]!! + 2
-                scores["Design"] = scores["Design"]!! + 2
-            }
-        }
-
+        val scores = calculateQuizScores(_answers.value)
         _scores.value = scores
         return scores
     }
@@ -226,10 +104,39 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
     // Called when the user taps "Submit" in the quiz
     fun submitQuiz(): Map<String, Int> {
         val computed = computeScores()
-        // Reward finishing the quiz
-        addPoints(100)
-        updateProgress { it.copy(completedQuiz = true, viewedResults = true) }
-        addBadge("Quiz Master")
+        val currentAnswers = _answers.value
+
+        val topCareer = computed.maxByOrNull { it.value }?.key ?: "General"
+        val topScore = computed[topCareer] ?: 0
+        val attempt = QuizAttempt(
+            id = System.currentTimeMillis().toString(),
+            timestamp = System.currentTimeMillis(),
+            formattedDate = SimpleDateFormat("MMM dd, yyyy • HH:mm", Locale.getDefault()).format(Date()),
+            topCareer = topCareer,
+            topScore = topScore,
+            scores = computed
+        )
+
+        viewModelScope.launch {
+            try {
+                DataStoreManager.saveQuizAnswers(ctx, currentAnswers)
+                DataStoreManager.saveQuizScores(ctx, computed)
+                DataStoreManager.recordQuizAttempt(ctx, attempt)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        _progress.update { prev ->
+            val updatedBadges = if (prev.badges.contains("Quiz Master")) prev.badges else prev.badges + "Quiz Master"
+            prev.copy(
+                points = prev.points + 100,
+                completedQuiz = true,
+                viewedResults = true,
+                badges = updatedBadges
+            )
+        }
+        persistProgress()
         return computed
     }
 
@@ -289,6 +196,14 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         persistProgress()
         _answers.value = QuizAnswers()
         _scores.value = emptyMap()
+        viewModelScope.launch {
+            try {
+                DataStoreManager.clearQuizData(ctx)
+                DataStoreManager.clearQuizHistory(ctx)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     // Persist the current progress to DataStore via DataStoreManager

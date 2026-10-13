@@ -16,16 +16,23 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.CompareArrows
+import androidx.compose.material.icons.filled.AssignmentTurnedIn
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Work
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -46,6 +53,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.adityayadav.careerguidancecommunity.data.DataStoreManager
@@ -96,6 +104,7 @@ fun HomeScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
                     .padding(bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -195,7 +204,54 @@ fun HomeScreen(
                     }
                 }
 
-                // Quick actions row
+                // AI Career Mentor Flagship Banner
+                ElevatedCard(
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium,
+                    colors = CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    ),
+                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.AutoAwesome,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "Personalized AI Career Mentor",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                        Text(
+                            text = "Synthesizes your profile, strengths, and quiz assessments into tailored milestone roadmaps, exam targets, and project ideas.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.9f)
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            Button(onClick = { onNavigate("ai_mentor") }) {
+                                Text("Open Roadmap")
+                            }
+                        }
+                    }
+                }
+
+                // Quick actions row 1
                 Row(
                     modifier = Modifier
                         .padding(horizontal = 16.dp)
@@ -216,7 +272,7 @@ fun HomeScreen(
                     )
                 }
 
-                // Secondary quick row
+                // Quick actions row 2: AI Mentor & Application Tracker
                 Row(
                     modifier = Modifier
                         .padding(horizontal = 16.dp)
@@ -224,11 +280,68 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     QuickActionCard(
+                        title = "AI Mentor",
+                        subtitle = "Milestone plan",
+                        iconTint = MaterialTheme.colorScheme.primary,
+                        onClick = { onNavigate("ai_mentor") }
+                    )
+                    QuickActionCard(
+                        title = "Tracker",
+                        subtitle = "Grants pipeline",
+                        iconTint = MaterialTheme.colorScheme.tertiary,
+                        onClick = { onNavigate("application_tracker") }
+                    )
+                }
+
+                // Quick actions row 3: Community & Compare
+                Row(
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    QuickActionCard(
+                        title = "Community",
+                        subtitle = "Mentorship AMA",
+                        iconTint = MaterialTheme.colorScheme.secondary,
+                        onClick = { onNavigate("community") }
+                    )
+                    QuickActionCard(
+                        title = "Compare",
+                        subtitle = "Side-by-side view",
+                        iconTint = MaterialTheme.colorScheme.primary,
+                        onClick = { onNavigate("compare") }
+                    )
+                }
+
+                // Quick actions row 4: Saved Items & Dashboard
+                Row(
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    QuickActionCard(
+                        title = "Saved Items",
+                        subtitle = "Colleges & Grants",
+                        iconTint = MaterialTheme.colorScheme.tertiary,
+                        onClick = { onNavigate("saved") }
+                    )
+                    QuickActionCard(
                         title = "Dashboard",
                         subtitle = "Your progress",
-                        iconTint = MaterialTheme.colorScheme.tertiary,
+                        iconTint = MaterialTheme.colorScheme.primary,
                         onClick = { onNavigate("dashboard") }
                     )
+                }
+
+                // Parental tips row
+                Row(
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     QuickActionCard(
                         title = "Parental Tips",
                         subtitle = "Support for parents",
@@ -242,15 +355,32 @@ fun HomeScreen(
                 // Recommended / Featured area
                 Column(
                     modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .weight(1f),
+                        .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
                         text = "Recommended next steps",
                         style = MaterialTheme.typography.titleMedium
                     )
-                    Divider()
+                    HorizontalDivider()
+
+                    RecommendationCard(
+                        title = "Consult AI Career Mentor",
+                        description = "Review your personalized milestones, recommended exams, and portfolio project ideas tailored to your strengths.",
+                        onPrimary = { onNavigate("ai_mentor") }
+                    )
+
+                    RecommendationCard(
+                        title = "Join Peer & Mentor Community",
+                        description = "Ask questions and read real advice from verified mentors and alumni across IITs, NID, and top colleges.",
+                        onPrimary = { onNavigate("community") }
+                    )
+
+                    RecommendationCard(
+                        title = "Track Scholarship Applications",
+                        description = "Organize deadlines, check document readiness, and move opportunities across your application pipeline.",
+                        onPrimary = { onNavigate("application_tracker") }
+                    )
 
                     RecommendationCard(
                         title = "Complete the quiz",
@@ -322,6 +452,11 @@ private fun RowScope.QuickActionCard(
                 val icon = when (title) {
                     "Colleges" -> Icons.Filled.School
                     "Scholarships" -> Icons.Filled.Star
+                    "AI Mentor" -> Icons.Filled.AutoAwesome
+                    "Tracker" -> Icons.Filled.AssignmentTurnedIn
+                    "Community" -> Icons.Filled.Forum
+                    "Compare" -> Icons.AutoMirrored.Filled.CompareArrows
+                    "Saved Items" -> Icons.Filled.Bookmark
                     "Dashboard" -> Icons.Filled.Dashboard
                     "Parental Tips" -> Icons.Filled.Book
                     else -> Icons.Filled.Work

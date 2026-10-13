@@ -23,6 +23,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
@@ -36,6 +38,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -49,7 +52,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -60,10 +65,13 @@ import com.adityayadav.careerguidancecommunity.viewmodel.ScholarshipViewModel
 @Composable
 fun ScholarshipScreen(
     onBack: () -> Unit,
+    onNavigate: (String) -> Unit = {},
     vm: ScholarshipViewModel = viewModel()
 ) {
     val ui by vm.uiState.collectAsState()
+    val savedScholarshipIds by vm.savedScholarshipIds.collectAsState()
     val ctx = LocalContext.current
+    val haptic = LocalHapticFeedback.current
 
     LaunchedEffect(Unit) {
         vm.loadAndFilter()
@@ -92,6 +100,14 @@ fun ScholarshipScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
                         )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onNavigate("saved")
+                    }) {
+                        Icon(Icons.Default.Bookmark, contentDescription = "Saved Scholarships")
                     }
                 }
             )
@@ -227,11 +243,20 @@ fun ScholarshipScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(ui.items) { s ->
-                            ScholarshipListItem(s) {
-                                s.applyLink?.let { url ->
-                                    openScholarshipLink(ctx, url)
+                            val isSaved = savedScholarshipIds.contains(s.id)
+                            ScholarshipListItem(
+                                item = s,
+                                isSaved = isSaved,
+                                onToggleBookmark = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    vm.toggleBookmark(s.id)
+                                },
+                                onApply = {
+                                    s.applyLink?.let { url ->
+                                        openScholarshipLink(ctx, url)
+                                    }
                                 }
-                            }
+                            )
                         }
                     }
                 }
@@ -243,6 +268,8 @@ fun ScholarshipScreen(
 @Composable
 private fun ScholarshipListItem(
     item: Scholarship,
+    isSaved: Boolean,
+    onToggleBookmark: () -> Unit,
     onApply: () -> Unit
 ) {
     Card(
@@ -292,6 +319,14 @@ private fun ScholarshipListItem(
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
+
+                IconButton(onClick = onToggleBookmark) {
+                    Icon(
+                        imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                        contentDescription = "Save scholarship",
+                        tint = if (isSaved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             val amountText = item.amount ?: "Amount varies"
@@ -332,10 +367,13 @@ private fun ScholarshipListItem(
     }
 }
 
-private fun openScholarshipLink(ctx: android.content.Context, url: String) {
+private fun openScholarshipLink(ctx: android.content.Context, rawUrl: String) {
     try {
+        val validUrl = if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://")) {
+            "https://$rawUrl"
+        } else rawUrl
         ctx.startActivity(
-            Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            Intent(Intent.ACTION_VIEW, Uri.parse(validUrl))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
     } catch (e: Exception) {

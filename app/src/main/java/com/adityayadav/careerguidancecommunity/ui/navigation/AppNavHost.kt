@@ -22,6 +22,14 @@ sealed class Screen(val route: String) {
     object Dashboard : Screen("dashboard")
     object Profile : Screen("profile")
     object Settings : Screen("settings")
+    object Saved : Screen("saved")
+    object CollegeCompare : Screen("compare?ids={ids}") {
+        fun createRoute(ids: List<String> = emptyList()) =
+            if (ids.isNotEmpty()) "compare?ids=${ids.joinToString(",")}" else "compare"
+    }
+    object AiMentor : Screen("ai_mentor")
+    object ApplicationTracker : Screen("application_tracker")
+    object Community : Screen("community")
 
     object CollegeDetails : Screen("college/{collegeId}") {
         fun createRoute(id: String) = "college/$id"
@@ -120,7 +128,8 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
             val id = entry.arguments?.getString("collegeId")
             CollegeDetailsScreen(
                 collegeId = id,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onNavigate = { route -> safeNavigate(navController, route) }
             )
         }
 
@@ -134,7 +143,47 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
             quizViewModel.addBadge("Scholarship Seeker")
 
             ScholarshipScreen(
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onNavigate = { route -> safeNavigate(navController, route) }
+            )
+        }
+
+        // -------------------------------------
+        // SAVED OPPORTUNITIES
+        // -------------------------------------
+        composable(Screen.Saved.route) {
+            SavedScreen(
+                onBack = { navController.popBackStack() },
+                onNavigate = { route -> safeNavigate(navController, route) }
+            )
+        }
+
+        // -------------------------------------
+        // COMPARE COLLEGES
+        // -------------------------------------
+        composable(
+            route = "compare?ids={ids}",
+            arguments = listOf(
+                navArgument("ids") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { entry ->
+            val idsParam = entry.arguments?.getString("ids")
+            val ids = idsParam?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+            CollegeComparisonScreen(
+                initialIds = ids,
+                onBack = { navController.popBackStack() },
+                onNavigateToDetails = { id -> navController.navigate("college/$id") }
+            )
+        }
+        composable("compare") {
+            CollegeComparisonScreen(
+                initialIds = emptyList(),
+                onBack = { navController.popBackStack() },
+                onNavigateToDetails = { id -> navController.navigate("college/$id") }
             )
         }
 
@@ -154,7 +203,37 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
             GamificationDashboard(
                 viewModel = quizViewModel,
                 onNavigate = { route -> safeNavigate(navController, route) },
-                onBack = { navController.popBackStack() }   // ⬅ go back to previous screen
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        // -------------------------------------
+        // AI CAREER MENTOR
+        // -------------------------------------
+        composable(Screen.AiMentor.route) {
+            AiCareerMentorScreen(
+                onBack = { navController.popBackStack() },
+                onNavigate = { route -> safeNavigate(navController, route) }
+            )
+        }
+
+        // -------------------------------------
+        // SCHOLARSHIP APPLICATION TRACKER
+        // -------------------------------------
+        composable(Screen.ApplicationTracker.route) {
+            ApplicationTrackerScreen(
+                onBack = { navController.popBackStack() },
+                onNavigate = { route -> safeNavigate(navController, route) }
+            )
+        }
+
+        // -------------------------------------
+        // PEER COMMUNITY & MENTORSHIP Q&A
+        // -------------------------------------
+        composable(Screen.Community.route) {
+            CommunityScreen(
+                onBack = { navController.popBackStack() },
+                onNavigate = { route -> safeNavigate(navController, route) }
             )
         }
     }

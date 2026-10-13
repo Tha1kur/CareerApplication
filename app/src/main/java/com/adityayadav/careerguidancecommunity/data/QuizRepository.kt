@@ -10,16 +10,17 @@ import java.io.IOException
 
 object QuizRepository {
     private var cached: List<QuizQuestion>? = null
+    private val json = Json { ignoreUnknownKeys = true }
 
     suspend fun loadAll(context: Context): List<QuizQuestion> {
         cached?.let { return it }
         return withContext(Dispatchers.IO) {
             try {
-                val json = context.assets.open("aptitudequiz.json").bufferedReader().use { it.readText() }
-                val list = Json { ignoreUnknownKeys = true }.decodeFromString<List<QuizQuestion>>(json)
+                val raw = context.assets.open("aptitudequiz.json").bufferedReader().use { it.readText() }
+                val list = json.decodeFromString<List<QuizQuestion>>(raw)
                 cached = list
                 list
-            } catch (e: IOException) {
+            } catch (e: Exception) {
                 e.printStackTrace()
                 emptyList()
             }

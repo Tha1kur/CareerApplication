@@ -28,8 +28,13 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.CompareArrows
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -40,8 +45,10 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
@@ -55,6 +62,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -69,6 +78,9 @@ fun CollegesScreen(
     onNavigate: (String) -> Unit = {}
 ) {
     val ui by viewModel.uiState.collectAsState()
+    val savedCollegeIds by viewModel.savedCollegeIds.collectAsState()
+    val compareSelection by viewModel.compareSelection.collectAsState()
+    val haptic = LocalHapticFeedback.current
 
     // Load once & mark that user explored colleges (for gamification)
     LaunchedEffect(Unit) {
@@ -100,8 +112,60 @@ fun CollegesScreen(
                             contentDescription = "Back to Home"
                         )
                     }
+                },
+                actions = {
+                    IconButton(onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        val route = if (compareSelection.isNotEmpty()) "compare?ids=${compareSelection.joinToString(",")}" else "compare"
+                        onNavigate(route)
+                    }) {
+                        Icon(Icons.AutoMirrored.Filled.CompareArrows, contentDescription = "Compare Colleges")
+                    }
+                    IconButton(onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onNavigate("saved")
+                    }) {
+                        Icon(Icons.Default.Bookmark, contentDescription = "Saved Colleges")
+                    }
                 }
             )
+        },
+        bottomBar = {
+            if (compareSelection.isNotEmpty()) {
+                Surface(
+                    tonalElevation = 8.dp,
+                    shadowElevation = 8.dp,
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Compare (${compareSelection.size}/3 selected)",
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.clearCompareSelection()
+                            }) {
+                                Text("Clear")
+                            }
+                            Button(onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                val ids = compareSelection.joinToString(",")
+                                onNavigate("compare?ids=$ids")
+                            }) {
+                                Text("Compare Now")
+                            }
+                        }
+                    }
+                }
+            }
         }
     ) { padding ->
         Column(
@@ -257,9 +321,22 @@ fun CollegesScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(ui.items) { college ->
-                            CollegeListItem(college) {
-                                onNavigate("college/${college.id}")
-                            }
+                            val isSaved = savedCollegeIds.contains(college.id)
+                            val isCompared = compareSelection.contains(college.id)
+                            CollegeListItem(
+                                c = college,
+                                isSaved = isSaved,
+                                isSelectedForCompare = isCompared,
+                                onToggleBookmark = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    viewModel.toggleBookmark(college.id)
+                                },
+                                onToggleCompare = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    viewModel.toggleCompareSelection(college.id)
+                                },
+                                onClick = { onNavigate("college/${college.id}") }
+                            )
                         }
                     }
                 }
@@ -271,6 +348,10 @@ fun CollegesScreen(
 @Composable
 private fun CollegeListItem(
     c: College,
+    isSaved: Boolean,
+    isSelectedForCompare: Boolean,
+    onToggleBookmark: () -> Unit,
+    onToggleCompare: () -> Unit,
     onClick: () -> Unit
 ) {
     Card(
@@ -335,19 +416,46 @@ private fun CollegeListItem(
                     }
                 }
 
-                if (c.rank != null) {
-                    Card(
-                        shape = RoundedCornerShape(50),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer
-                        )
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    if (c.rank != null) {
+                        Card(
+                            shape = RoundedCornerShape(50),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer
+                            )
+                        ) {
+                            Text(
+                                text = "Rank ${c.rank}",
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(0.dp)
                     ) {
-                        Text(
-                            text = "Rank ${c.rank}",
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
+                        IconButton(onClick = onToggleCompare, modifier = Modifier.size(32.dp)) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.CompareArrows,
+                                contentDescription = "Compare",
+                                modifier = Modifier.size(20.dp),
+                                tint = if (isSelectedForCompare) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(onClick = onToggleBookmark, modifier = Modifier.size(32.dp)) {
+                            Icon(
+                                imageVector = if (isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = "Bookmark",
+                                modifier = Modifier.size(20.dp),
+                                tint = if (isSaved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }

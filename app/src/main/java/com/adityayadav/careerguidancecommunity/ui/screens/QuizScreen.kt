@@ -8,7 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.with
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -54,19 +54,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.adityayadav.careerguidancecommunity.data.DataStoreManager
+import com.adityayadav.careerguidancecommunity.data.QuizRepository
+import com.adityayadav.careerguidancecommunity.data.model.QuizQuestion
+import com.adityayadav.careerguidancecommunity.data.model.QuizOption
 import com.adityayadav.careerguidancecommunity.viewmodel.QuizViewModel
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.io.IOException
-
-data class QuizOption(val value: String, val label: String)
-data class QuizQuestion(val id: String, val question: String, val options: List<QuizOption>)
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
@@ -76,8 +78,8 @@ fun QuizScreen(
     onBackToHome: () -> Unit
 ) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
-    val gson = remember { Gson() }
     val partialKey = "quiz_partial_answers"
 
     var questions by remember { mutableStateOf<List<QuizQuestion>>(emptyList()) }
@@ -88,12 +90,12 @@ fun QuizScreen(
     // map questionId -> selectedOptionValue (in-memory)
     val selected = remember { mutableStateMapOf<String, String>() }
 
-    // Load questions from assets and restore partial answers
+    // Load questions from repository and restore partial answers
     LaunchedEffect(Unit) {
         isLoading = true
         loadError = null
         try {
-            questions = loadQuestionsFromAssets(context, "aptitudequiz.json", gson)
+            questions = QuizRepository.loadAll(context)
         } catch (e: Exception) {
             loadError = e.message ?: "Failed to load quiz"
         } finally {
@@ -102,10 +104,9 @@ fun QuizScreen(
 
         // Restore partial answers (one-shot)
         try {
-            val json = DataStoreManager.getStringFlow(context, partialKey, "{}").first()
-            val type = object : TypeToken<Map<String, String>>() {}.type
+            val jsonStr = DataStoreManager.getStringFlow(context, partialKey, "{}").first()
             val restored: Map<String, String> = try {
-                gson.fromJson(json, type) ?: emptyMap()
+                Json.decodeFromString(jsonStr)
             } catch (_: Exception) {
                 emptyMap()
             }
@@ -118,8 +119,8 @@ fun QuizScreen(
     fun persistPartial() {
         scope.launch {
             try {
-                val json = gson.toJson(selected.toMap())
-                DataStoreManager.saveString(context, partialKey, json)
+                val jsonStr = Json.encodeToString(selected.toMap())
+                DataStoreManager.saveString(context, partialKey, jsonStr)
             } catch (_: Exception) {
             }
         }
@@ -199,14 +200,14 @@ fun QuizScreen(
                                 if (targetState > initialState) {
                                     slideInHorizontally(
                                         animationSpec = tween(300)
-                                    ) { width -> width } + fadeIn() with
+                                    ) { width -> width } + fadeIn() togetherWith
                                             slideOutHorizontally(
                                                 animationSpec = tween(300)
                                             ) { width -> -width } + fadeOut()
                                 } else {
                                     slideInHorizontally(
                                         animationSpec = tween(300)
-                                    ) { width -> -width } + fadeIn() with
+                                    ) { width -> -width } + fadeIn() togetherWith
                                             slideOutHorizontally(
                                                 animationSpec = tween(300)
                                             ) { width -> width } + fadeOut()
@@ -221,6 +222,7 @@ fun QuizScreen(
                                 question = q,
                                 selectedValue = selected[q.id],
                                 onOptionSelected = { value ->
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     onSelect(q.id, value)
                                 }
                             )
@@ -230,9 +232,20 @@ fun QuizScreen(
                             canGoBack = index > 0,
                             isLastQuestion = index == questions.lastIndex,
                             onBackToHome = onBackToHome,
-                            onPrevious = { if (index > 0) index-- },
-                            onNext = { if (index < questions.lastIndex) index++ },
+                            onPrevious = {
+                                if (index > 0) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    index--
+                                }
+                            },
+                            onNext = {
+                                if (index < questions.lastIndex) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    index++
+                                }
+                            },
                             onSubmit = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 selected["favoriteSubject"]?.let { viewModel.updateFavoriteSubject(it) }
                                 selected["handsOnWork"]?.let { viewModel.updateHandsOnWork(it) }
                                 selected["jobPreference"]?.let { viewModel.updateJobPreference(it) }
@@ -304,7 +317,7 @@ private fun QuizProgressHeader(
                     )
                 }
                 LinearProgressIndicator(
-                    progress = progress,
+                    progress = { progress },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(6.dp),
@@ -447,19 +460,4 @@ private fun QuizFooter(
             Text(if (isLastQuestion) "Submit" else "Next")
         }
     }
-}
-
-/**
- * Read questions from assets using Gson.
- * Expects JSON like in aptitudequiz.json  [oai_citation:0‡aptitudequiz.json](file-service://file-FCWAnwGvakkKZN3j9yPhzC)
- */
-@Throws(IOException::class)
-private fun loadQuestionsFromAssets(
-    context: Context,
-    assetName: String,
-    gson: Gson
-): List<QuizQuestion> {
-    val json = context.assets.open(assetName).bufferedReader().use { it.readText() }
-    val type = object : TypeToken<List<QuizQuestion>>() {}.type
-    return gson.fromJson(json, type) ?: emptyList()
 }

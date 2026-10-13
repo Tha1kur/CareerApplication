@@ -2,15 +2,20 @@ package com.adityayadav.careerguidancecommunity.data
 
 import android.content.Context
 import com.adityayadav.careerguidancecommunity.data.model.College
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.IOException
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.decodeFromString
 
 object CollegeRepository {
 
-    // cached list (in-memory). Access from single-threaded coroutine contexts or treat as volatile.
+    private val jsonSerializer = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+    }
+
+    // cached list (in-memory)
+    @Volatile
     private var cached: List<College>? = null
 
     /**
@@ -26,14 +31,9 @@ object CollegeRepository {
                     .bufferedReader()
                     .use { it.readText() }
 
-                val type = object : TypeToken<List<College>>() {}.type
-                val list: List<College> = Gson().fromJson(json, type) ?: emptyList()
-
+                val list: List<College> = jsonSerializer.decodeFromString(json)
                 cached = list
                 list
-            } catch (e: IOException) {
-                e.printStackTrace()
-                emptyList()
             } catch (e: Exception) {
                 e.printStackTrace()
                 emptyList()
@@ -43,15 +43,32 @@ object CollegeRepository {
 
     /**
      * Replace the in-memory cache with the provided list.
-     * This is used when you fetch remote JSON and want to use it instead of local assets.
      */
     fun replaceCached(list: List<College>) {
         cached = list
     }
 
     /**
-     * Get a college by id from the cache. Returns null if cache is empty or not found.
-     * This is intentionally non-suspending — call loadAll(context) first to populate cache.
+     * Get a college by id, lazily loading if cache is uninitialized.
      */
-    fun getById(id: String): College? = cached?.firstOrNull { it.id == id }
+    suspend fun getById(context: Context, id: String): College? {
+        val existing = cached?.firstOrNull { it.id == id }
+        if (existing != null) return existing
+
+        val list = loadAll(context)
+        return list.firstOrNull { it.id == id }
+    }
+
+    /**
+     * In-memory cache query (non-suspending).
+     */
+    fun getCachedById(id: String): College? = cached?.firstOrNull { it.id == id }
+
+    /**
+     * Get multiple colleges by collection of IDs.
+     */
+    suspend fun getByIds(context: Context, ids: Collection<String>): List<College> {
+        val all = loadAll(context)
+        return all.filter { it.id in ids }
+    }
 }

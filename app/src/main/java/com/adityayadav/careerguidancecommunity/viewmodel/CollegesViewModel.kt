@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.adityayadav.careerguidancecommunity.data.CollegeRepository
 import com.adityayadav.careerguidancecommunity.data.DataStoreManager
 import com.adityayadav.careerguidancecommunity.data.model.College
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -24,9 +25,11 @@ data class CollegesUiState(
     val searchQuery: String = ""
 )
 
+@OptIn(FlowPreview::class)
 class CollegesViewModel(application: Application) : AndroidViewModel(application) {
 
     private val ctx = application.applicationContext
+    private val json = Json { ignoreUnknownKeys = true }
 
     // DataStore Keys
     private val FILTER_KEY = "colleges_filter"
@@ -37,6 +40,14 @@ class CollegesViewModel(application: Application) : AndroidViewModel(application
     private val _filterFlow = MutableStateFlow("All")
     private val _remoteUrl = MutableStateFlow<String?>(null)
 
+    // Bookmarked colleges
+    private val _savedCollegeIds = MutableStateFlow<Set<String>>(emptySet())
+    val savedCollegeIds: StateFlow<Set<String>> = _savedCollegeIds.asStateFlow()
+
+    // Compare selections (up to 3 colleges)
+    private val _compareSelection = MutableStateFlow<Set<String>>(emptySet())
+    val compareSelection: StateFlow<Set<String>> = _compareSelection.asStateFlow()
+
     // Final UI state
     private val _uiState = MutableStateFlow(CollegesUiState(isLoading = true))
     val uiState: StateFlow<CollegesUiState> = _uiState.asStateFlow()
@@ -44,6 +55,12 @@ class CollegesViewModel(application: Application) : AndroidViewModel(application
     init {
         viewModelScope.launch {
             loadAndFilter()
+        }
+
+        viewModelScope.launch {
+            DataStoreManager.savedCollegesFlow(ctx).collect { set ->
+                _savedCollegeIds.value = set
+            }
         }
 
         // Refilter when search or filter changes
@@ -55,6 +72,26 @@ class CollegesViewModel(application: Application) : AndroidViewModel(application
                     applyLocalFilter(search, filter)
                 }
         }
+    }
+
+    fun toggleBookmark(collegeId: String) {
+        viewModelScope.launch {
+            DataStoreManager.toggleSaveCollege(ctx, collegeId)
+        }
+    }
+
+    fun toggleCompareSelection(collegeId: String) {
+        _compareSelection.update { current ->
+            if (current.contains(collegeId)) {
+                current - collegeId
+            } else {
+                if (current.size < 3) current + collegeId else current
+            }
+        }
+    }
+
+    fun clearCompareSelection() {
+        _compareSelection.value = emptySet()
     }
 
     fun onSearchChanged(text: String) {
@@ -117,7 +154,7 @@ class CollegesViewModel(application: Application) : AndroidViewModel(application
         withContext(Dispatchers.IO) {
             try {
                 val url = URL(urlString)
-                val conn = url.openConnection() as HttpsURLConnection
+                val conn = url.openConnection() as? HttpsURLConnection ?: return@withContext emptyList()
                 conn.requestMethod = "GET"
                 conn.connectTimeout = 8000
                 conn.readTimeout = 8000
@@ -125,8 +162,8 @@ class CollegesViewModel(application: Application) : AndroidViewModel(application
 
                 if (conn.responseCode != 200) return@withContext emptyList()
 
-                val json = conn.inputStream.bufferedReader().readText()
-                Json { ignoreUnknownKeys = true }.decodeFromString(json)
+                val raw = conn.inputStream.bufferedReader().readText()
+                json.decodeFromString<List<College>>(raw)
             } catch (e: Exception) {
                 emptyList()
             }
