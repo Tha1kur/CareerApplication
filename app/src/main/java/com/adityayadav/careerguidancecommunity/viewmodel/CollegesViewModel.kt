@@ -54,6 +54,11 @@ class CollegesViewModel(application: Application) : AndroidViewModel(application
 
     init {
         viewModelScope.launch {
+            val savedSearch = DataStoreManager.getStringFlow(ctx, SEARCH_KEY, "").first()
+            val savedFilter = DataStoreManager.getStringFlow(ctx, FILTER_KEY, "All").first().ifBlank { "All" }
+            _searchQueryFlow.value = savedSearch
+            _filterFlow.value = savedFilter
+            _uiState.update { it.copy(searchQuery = savedSearch, selectedFilter = savedFilter) }
             loadAndFilter()
         }
 

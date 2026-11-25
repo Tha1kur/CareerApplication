@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -26,13 +27,16 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -50,11 +54,12 @@ fun SettingsScreen(
 ) {
     val context: Context = LocalContext.current
     val themeMode by DataStoreManager
-        .getStringFlow(context, "theme_mode", "light")
-        .collectAsState(initial = "light")
+        .getStringFlow(context, "theme_mode", "system")
+        .collectAsState(initial = "system")
 
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    var pendingResetAction by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         // hook for any future preload
@@ -165,36 +170,21 @@ fun SettingsScreen(
             )
 
             OutlinedButton(
-                onClick = {
-                    scope.launch {
-                        quizViewModel.resetProgress()
-                        snackbarHostState.showSnackbar("Gamification progress reset")
-                    }
-                },
+                onClick = { pendingResetAction = "progress" },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Reset gamification (XP & badges)")
             }
 
             OutlinedButton(
-                onClick = {
-                    scope.launch {
-                        quizViewModel.resetAllProgress()
-                        snackbarHostState.showSnackbar("All quiz data reset")
-                    }
-                },
+                onClick = { pendingResetAction = "all_quiz" },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Reset quiz, scores & XP")
             }
 
             OutlinedButton(
-                onClick = {
-                    scope.launch {
-                        DataStoreManager.clearProfile(context)
-                        snackbarHostState.showSnackbar("Profile cleared")
-                    }
-                },
+                onClick = { pendingResetAction = "profile" },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Clear profile")
@@ -203,10 +193,66 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Note: Theme switching here stores your preference in DataStore. " +
-                        "To fully apply it app‑wide, read this value in your Theme setup and choose light/dark color schemes accordingly.",
-                style = MaterialTheme.typography.bodySmall
+                text = "Your theme preference and app data are stored locally on this device.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+
+    pendingResetAction?.let { action ->
+        val (dialogTitle, dialogBody, confirmLabel) = when (action) {
+            "progress" -> Triple(
+                "Reset Gamification?",
+                "This will reset your XP, level, and earned badges. Your quiz results and profile will remain intact.",
+                "Reset XP"
+            )
+            "all_quiz" -> Triple(
+                "Reset Quiz, Scores & XP?",
+                "This will clear your quiz draft, answers, scores, attempt history, saved career path, and XP.",
+                "Reset All"
+            )
+            else -> Triple(
+                "Clear Profile?",
+                "This will remove your saved name, age, and career goal from this device.",
+                "Clear Profile"
+            )
+        }
+
+        AlertDialog(
+            onDismissRequest = { pendingResetAction = null },
+            title = { Text(dialogTitle) },
+            text = { Text(dialogBody) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        pendingResetAction = null
+                        scope.launch {
+                            when (action) {
+                                "progress" -> {
+                                    quizViewModel.resetProgress()
+                                    snackbarHostState.showSnackbar("Gamification progress reset")
+                                }
+                                "all_quiz" -> {
+                                    quizViewModel.resetAllProgress()
+                                    snackbarHostState.showSnackbar("All quiz data reset")
+                                }
+                                else -> {
+                                    DataStoreManager.clearProfile(context)
+                                    snackbarHostState.showSnackbar("Profile cleared")
+                                }
+                            }
+                        }
+                    }
+                ) {
+                    Text(confirmLabel)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingResetAction = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }

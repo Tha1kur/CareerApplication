@@ -322,8 +322,12 @@ fun ApplicationTrackerScreen(
                                 scope.launch {
                                     DataStoreManager.updateScholarshipStage(context, item.scholarshipId, newStage)
                                     if (newStage == ApplicationStage.AWARDED) {
-                                        DataStoreManager.addPoints(context, 100)
-                                        DataStoreManager.addBadge(context, "Scholarship Awardee")
+                                        DataStoreManager.grantOneTimeReward(
+                                            context = context,
+                                            rewardKey = "scholarship_awarded_${item.scholarshipId}",
+                                            points = 100,
+                                            badge = "Scholarship Awardee"
+                                        )
                                     }
                                 }
                             },

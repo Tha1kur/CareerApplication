@@ -37,6 +37,8 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -80,6 +82,7 @@ fun QuizScreen(
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     val partialKey = "quiz_partial_answers"
 
     var questions by remember { mutableStateOf<List<QuizQuestion>>(emptyList()) }
@@ -132,6 +135,7 @@ fun QuizScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Aptitude Quiz") },
@@ -245,23 +249,33 @@ fun QuizScreen(
                                 }
                             },
                             onSubmit = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                selected["favoriteSubject"]?.let { viewModel.updateFavoriteSubject(it) }
-                                selected["handsOnWork"]?.let { viewModel.updateHandsOnWork(it) }
-                                selected["jobPreference"]?.let { viewModel.updateJobPreference(it) }
-                                selected["workEnvironment"]?.let { viewModel.updateWorkEnvironment(it) }
-                                selected["leadership"]?.let { viewModel.updateLeadership(it) }
-                                selected["problemSolving"]?.let { viewModel.updateProblemSolving(it) }
-                                selected["creativity"]?.let { viewModel.updateCreativity(it) }
-                                selected["communication"]?.let { viewModel.updateCommunication(it) }
+                                val firstUnansweredIdx = questions.indexOfFirst { q -> selected[q.id].isNullOrBlank() }
+                                if (firstUnansweredIdx >= 0) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    index = firstUnansweredIdx
+                                    val remaining = questions.count { q -> selected[q.id].isNullOrBlank() }
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Please answer all questions ($remaining remaining)")
+                                    }
+                                } else {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    viewModel.updateFavoriteSubject(selected["favoriteSubject"].orEmpty())
+                                    viewModel.updateHandsOnWork(selected["handsOnWork"].orEmpty())
+                                    viewModel.updateJobPreference(selected["jobPreference"].orEmpty())
+                                    viewModel.updateWorkEnvironment(selected["workEnvironment"].orEmpty())
+                                    viewModel.updateLeadership(selected["leadership"].orEmpty())
+                                    viewModel.updateProblemSolving(selected["problemSolving"].orEmpty())
+                                    viewModel.updateCreativity(selected["creativity"].orEmpty())
+                                    viewModel.updateCommunication(selected["communication"].orEmpty())
 
-                                viewModel.submitQuiz()
+                                    viewModel.submitQuiz()
 
-                                scope.launch {
-                                    DataStoreManager.saveString(context, partialKey, "{}")
+                                    scope.launch {
+                                        DataStoreManager.saveString(context, partialKey, "{}")
+                                    }
+
+                                    onComplete()
                                 }
-
-                                onComplete()
                             }
                         )
                     }

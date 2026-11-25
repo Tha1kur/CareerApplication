@@ -65,6 +65,7 @@ import com.adityayadav.careerguidancecommunity.viewmodel.ScholarshipViewModel
 @Composable
 fun ScholarshipScreen(
     onBack: () -> Unit,
+    onCheckScholarships: () -> Unit = {},
     onNavigate: (String) -> Unit = {},
     vm: ScholarshipViewModel = viewModel()
 ) {
@@ -75,6 +76,7 @@ fun ScholarshipScreen(
 
     LaunchedEffect(Unit) {
         vm.loadAndFilter()
+        onCheckScholarships()
     }
 
     Scaffold(
@@ -331,6 +333,7 @@ private fun ScholarshipListItem(
 
             val amountText = item.amount ?: "Amount varies"
             val deadlineText = item.deadline ?: "Deadline not announced"
+            val isHistoricalSample = deadlineText.contains("2025")
 
             Text(
                 text = "Amount: $amountText",
@@ -338,9 +341,17 @@ private fun ScholarshipListItem(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = "Deadline: $deadlineText",
+                text = if (isHistoricalSample) {
+                    "Deadline: $deadlineText (Sample • Expired)"
+                } else {
+                    "Deadline: $deadlineText"
+                },
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (isHistoricalSample) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
             )
 
             if (!item.eligibility.isNullOrBlank()) {

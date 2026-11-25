@@ -109,10 +109,8 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
         composable(Screen.Colleges.route) {
             CollegesScreen(
                 onExploreColleges = {
-                    // gamification updates
-                    quizViewModel.markExploredColleges()
-                    quizViewModel.addPoints(30)
-                    quizViewModel.addBadge("College Explorer")
+                    // One-time gamification reward (deduplicated in DataStore)
+                    quizViewModel.onCollegesExplored()
                 },
                 onNavigate = { route -> safeNavigate(navController, route) }
             )
@@ -137,13 +135,12 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
         // SCHOLARSHIPS
         // -------------------------------------
         composable(Screen.Scholarships.route) {
-            // reward user for visiting scholarships
-            quizViewModel.markCheckedScholarships()
-            quizViewModel.addPoints(40)
-            quizViewModel.addBadge("Scholarship Seeker")
-
             ScholarshipScreen(
                 onBack = { navController.popBackStack() },
+                onCheckScholarships = {
+                    // One-time gamification reward triggered via LaunchedEffect (never in composition)
+                    quizViewModel.onScholarshipsChecked()
+                },
                 onNavigate = { route -> safeNavigate(navController, route) }
             )
         }

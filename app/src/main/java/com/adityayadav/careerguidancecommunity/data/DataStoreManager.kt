@@ -39,6 +39,7 @@ object DataStoreManager {
     // --- Progress keys (used by QuizViewModel) ---
     private val KEY_POINTS = intPreferencesKey("points")
     private val KEY_BADGES = stringSetPreferencesKey("badges")
+    private val KEY_AWARDED_REWARDS = stringSetPreferencesKey("awarded_reward_keys")
     private val KEY_COMPLETED = booleanPreferencesKey("completed_quiz")
     private val KEY_VIEWED_RESULTS = booleanPreferencesKey("viewed_results")
     private val KEY_EXPLORED_COLLEGES = booleanPreferencesKey("explored_colleges")
@@ -138,6 +139,48 @@ object DataStoreManager {
         }
     }
 
+    /**
+     * Atomically grant a one-time XP/badge reward identified by [rewardKey].
+     * Returns true if the reward was newly granted, false if already granted.
+     */
+    suspend fun grantOneTimeReward(
+        context: Context,
+        rewardKey: String,
+        points: Int,
+        badge: String? = null,
+        markExploredColleges: Boolean = false,
+        markCheckedScholarships: Boolean = false
+    ): Boolean {
+        var granted = false
+        context.appPreferencesDataStore.edit { prefs ->
+            val awarded = prefs[KEY_AWARDED_REWARDS]?.toMutableSet() ?: mutableSetOf()
+            if (markExploredColleges) prefs[KEY_EXPLORED_COLLEGES] = true
+            if (markCheckedScholarships) prefs[KEY_CHECKED_SCHOLARSHIPS] = true
+
+            if (rewardKey !in awarded) {
+                awarded.add(rewardKey)
+                prefs[KEY_AWARDED_REWARDS] = awarded
+                if (points > 0) {
+                    val current = prefs[KEY_POINTS] ?: 0
+                    prefs[KEY_POINTS] = current + points
+                }
+                if (!badge.isNullOrBlank()) {
+                    val badges = prefs[KEY_BADGES]?.toMutableSet() ?: mutableSetOf()
+                    badges.add(badge)
+                    prefs[KEY_BADGES] = badges
+                }
+                granted = true
+            }
+        }
+        return granted
+    }
+
+    suspend fun clearAwardedRewards(context: Context) {
+        context.appPreferencesDataStore.edit { prefs ->
+            prefs.remove(KEY_AWARDED_REWARDS)
+        }
+    }
+
     // --- Quiz Answers & Scores persistence ---
     private val KEY_QUIZ_ANSWERS = stringPreferencesKey("quiz_answers_json")
     private val KEY_QUIZ_SCORES = stringPreferencesKey("quiz_scores_json")
@@ -190,6 +233,8 @@ object DataStoreManager {
         context.appPreferencesDataStore.edit { prefs ->
             prefs.remove(KEY_QUIZ_ANSWERS)
             prefs.remove(KEY_QUIZ_SCORES)
+            prefs.remove(keyForName("quiz_partial_answers"))
+            prefs.remove(keyForName("saved_career_key"))
         }
     }
 

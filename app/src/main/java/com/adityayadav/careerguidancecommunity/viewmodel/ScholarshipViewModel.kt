@@ -42,7 +42,14 @@ class ScholarshipViewModel(application: Application) : AndroidViewModel(applicat
     val uiState: StateFlow<ScholarshipsUiState> = _uiState.asStateFlow()
 
     init {
-        viewModelScope.launch { loadAndFilter() }
+        viewModelScope.launch {
+            val savedSearch = DataStoreManager.getStringFlow(ctx, "scholarships_search", "").first()
+            val savedCategory = DataStoreManager.getStringFlow(ctx, "scholarships_filter", "All").first().ifBlank { "All" }
+            _searchQuery.value = savedSearch
+            _categoryFlow.value = savedCategory
+            _uiState.update { it.copy(searchQuery = savedSearch, selectedCategory = savedCategory) }
+            loadAndFilter()
+        }
 
         viewModelScope.launch {
             DataStoreManager.savedScholarshipsFlow(ctx).collect { set ->

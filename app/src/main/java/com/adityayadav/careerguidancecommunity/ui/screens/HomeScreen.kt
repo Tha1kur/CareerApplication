@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.foundation.rememberScrollState
@@ -94,7 +95,7 @@ fun HomeScreen(
                     }
                     IconButton(onClick = { onNavigate("settings") }) {
                         Icon(
-                            imageVector = Icons.Filled.Dashboard,
+                            imageVector = Icons.Filled.Settings,
                             contentDescription = "Settings"
                         )
                     }

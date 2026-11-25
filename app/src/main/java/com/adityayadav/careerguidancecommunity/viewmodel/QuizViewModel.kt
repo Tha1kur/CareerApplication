@@ -165,39 +165,94 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
      * Gives a one‑time +50 XP bonus and a "Career Path Selected" badge.
      */
     fun onCareerPathSaved() {
-        val alreadyHasBadge = _progress.value.badges.contains("Career Path Selected")
-        if (!alreadyHasBadge) {
-            addPoints(50)
-            addBadge("Career Path Selected")
+        viewModelScope.launch {
+            try {
+                DataStoreManager.grantOneTimeReward(
+                    context = ctx,
+                    rewardKey = "career_path_saved",
+                    points = 50,
+                    badge = "Career Path Selected"
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    /** One-time reward for exploring colleges (+30 XP + College Explorer badge). */
+    fun onCollegesExplored() {
+        viewModelScope.launch {
+            try {
+                DataStoreManager.grantOneTimeReward(
+                    context = ctx,
+                    rewardKey = "explored_colleges",
+                    points = 30,
+                    badge = "College Explorer",
+                    markExploredColleges = true
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    /** One-time reward for visiting scholarships (+40 XP + Scholarship Seeker badge). */
+    fun onScholarshipsChecked() {
+        viewModelScope.launch {
+            try {
+                DataStoreManager.grantOneTimeReward(
+                    context = ctx,
+                    rewardKey = "checked_scholarships",
+                    points = 40,
+                    badge = "Scholarship Seeker",
+                    markCheckedScholarships = true
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
     fun markViewedResults() {
-        updateProgress { it.copy(viewedResults = true) }
+        if (!_progress.value.viewedResults) {
+            updateProgress { it.copy(viewedResults = true) }
+        }
     }
 
     fun markExploredColleges() {
-        updateProgress { it.copy(exploredColleges = true) }
+        if (!_progress.value.exploredColleges) {
+            updateProgress { it.copy(exploredColleges = true) }
+        }
     }
 
     fun markCheckedScholarships() {
-        updateProgress { it.copy(checkedScholarships = true) }
+        if (!_progress.value.checkedScholarships) {
+            updateProgress { it.copy(checkedScholarships = true) }
+        }
     }
 
     /** Reset only gamification progress (keep answers & scores as-is if you want) */
     fun resetProgress() {
         _progress.value = UserProgress()
-        persistProgress()
+        viewModelScope.launch {
+            try {
+                DataStoreManager.saveProgress(ctx, UserProgress())
+                DataStoreManager.clearAwardedRewards(ctx)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
-    /** Reset everything: progress + answers + scores */
+    /** Reset everything: progress + answers + scores + history + drafts + saved path */
     fun resetAllProgress() {
         _progress.value = UserProgress()
-        persistProgress()
         _answers.value = QuizAnswers()
         _scores.value = emptyMap()
         viewModelScope.launch {
             try {
+                DataStoreManager.saveProgress(ctx, UserProgress())
+                DataStoreManager.clearAwardedRewards(ctx)
                 DataStoreManager.clearQuizData(ctx)
                 DataStoreManager.clearQuizHistory(ctx)
             } catch (e: Exception) {

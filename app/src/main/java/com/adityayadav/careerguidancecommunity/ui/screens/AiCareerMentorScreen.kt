@@ -9,6 +9,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -71,7 +73,7 @@ import com.adityayadav.careerguidancecommunity.data.model.Profile
 import com.adityayadav.careerguidancecommunity.data.model.UserProgress
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AiCareerMentorScreen(
     onBack: () -> Unit = {},
@@ -205,6 +207,11 @@ fun AiCareerMentorScreen(
                             color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.95f),
                             lineHeight = 22.sp
                         )
+                        Text(
+                            text = "Heuristic match • Generated locally on-device from your quiz & profile",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                        )
                     }
                 }
             }
@@ -303,9 +310,10 @@ fun AiCareerMentorScreen(
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold
                     )
-                    Row(
+                    FlowRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         aiPlan.targetEntranceExams.take(4).forEach { exam ->
                             Surface(
@@ -330,11 +338,12 @@ fun AiCareerMentorScreen(
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold
                     )
-                    Row(
+                    FlowRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        aiPlan.recommendedSkills.take(3).forEach { skill ->
+                        aiPlan.recommendedSkills.take(4).forEach { skill ->
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
                                 color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
@@ -394,7 +403,11 @@ fun AiCareerMentorScreen(
                         scope.launch {
                             DataStoreManager.toggleMilestone(context, milestone.id)
                             if (!isDone) {
-                                DataStoreManager.addPoints(context, 25)
+                                DataStoreManager.grantOneTimeReward(
+                                    context = context,
+                                    rewardKey = "milestone_${milestone.id}",
+                                    points = 25
+                                )
                             }
                         }
                     },
